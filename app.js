@@ -20,10 +20,10 @@ const GuernseyRibApp = () => {
   const [currentConditions, setCurrentConditions] = useState({
     tides: {
       currentHeight: '--',
-      nextHigh: { time: '--', height: '--' },
-      nextLow: { time: '--', height: '--' },
-      marinaOpen: '--',
-      marinaClosed: '--',
+      lastTide: { time: '--', height: '--', type: '--' },
+      nextTide: { time: '--', height: '--', type: '--' },
+      lastMarinaEvent: { time: '--', type: '--' },
+      nextMarinaEvent: { time: '--', type: '--' },
       sillClearance: false,
       allTides: []
     },
@@ -185,83 +185,84 @@ const GuernseyRibApp = () => {
         currentHeight = closestReading ? closestReading.height : '--';
       }
       
-      // Find next high and low from peak times
-      let nextHigh = { time: '--', height: '--' };
-      let nextLow = { time: '--', height: '--' };
+      // Find last and next tide events
+      let lastTide = { time: '--', height: '--', type: '--' };
+      let nextTide = { time: '--', height: '--', type: '--' };
       
-      // First, try to find times later today
-      tideExtremes.forEach(extreme => {
-        const timeParts = extreme.time.split(':');
-        if (timeParts.length === 2) {
-          const extremeMinutes = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
-          if (extreme.type === 'high' && extremeMinutes > currentTimeMinutes && nextHigh.time === '--') {
-            nextHigh = extreme;
-          }
-          if (extreme.type === 'low' && extremeMinutes > currentTimeMinutes && nextLow.time === '--') {
-            nextLow = extreme;
-          }
-        }
-      });
+      // Get all tides in chronological order
+      const allEvents = [...tideExtremes];
       
-      // If no next high/low found today, use the first ones (tomorrow's)
-      if (nextHigh.time === '--' && tideExtremes.length > 0) {
-        const highs = tideExtremes.filter(e => e.type === 'high');
-        if (highs.length > 0) {
-          nextHigh = { ...highs[0], time: highs[0].time + ' (tomorrow)' };
-        }
-      }
-      if (nextLow.time === '--' && tideExtremes.length > 0) {
-        const lows = tideExtremes.filter(e => e.type === 'low');
-        if (lows.length > 0) {
-          nextLow = { ...lows[0], time: lows[0].time + ' (tomorrow)' };
+      // Find last and next based on current time
+      for (let i = 0; i < allEvents.length; i++) {
+        const event = allEvents[i];
+        const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+        
+        if (eventMinutes <= currentTimeMinutes) {
+          lastTide = event;
+        } else if (nextTide.time === '--') {
+          nextTide = event;
         }
       }
       
-      // Calculate next marina times based on current time
-      const calculateNextMarinaTimes = (marina) => {
-        if (!marina || !marina.open1) return { nextOpen: '--', nextClose: '--' };
+      // If no last tide found (we're before the first tide of the day), it must have been yesterday
+      if (lastTide.time === '--' && allEvents.length > 0) {
+        // Use the last tide from the list as yesterday's last tide
+        lastTide = { ...allEvents[allEvents.length - 1], time: allEvents[allEvents.length - 1].time + ' (yesterday)' };
+      }
+      
+      // If no next tide found (we're after the last tide of the day), check tomorrow
+      if (nextTide.time === '--' && allEvents.length > 0) {
+        // Use the first tide as tomorrow's first tide
+        nextTide = { ...allEvents[0], time: allEvents[0].time + ' (tomorrow)' };
+      }
+      
+      // Calculate marina events based on current time
+      const calculateMarinaEvents = (marina) => {
+        if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
         
-        const times = [
-          { type: 'open', time: marina.open1 },
-          { type: 'close', time: marina.close1 },
-          { type: 'open', time: marina.open2 },
-          { type: 'close', time: marina.close2 }
-        ].filter(t => t.time && t.time !== '--');
+        const events = [
+          { type: 'Opened', time: marina.open1 },
+          { type: 'Closed', time: marina.close1 },
+          { type: 'Opened', time: marina.open2 },
+          { type: 'Closed', time: marina.close2 }
+        ].filter(e => e.time && e.time !== '--');
         
-        let nextOpen = '--';
-        let nextClose = '--';
+        let lastEvent = { time: '--', type: '--' };
+        let nextEvent = { time: '--', type: '--' };
         
-        // Find next times
-        times.forEach(t => {
-          const timeParts = t.time.split(':');
-          if (timeParts.length === 2) {
-            const timeMinutes = parseInt(timeParts[0]) * 60 + parseInt(timeParts[1]);
-            if (timeMinutes > currentTimeMinutes) {
-              if (t.type === 'open' && nextOpen === '--') nextOpen = t.time;
-              if (t.type === 'close' && nextClose === '--') nextClose = t.time;
-            }
+        // Find last and next marina events
+        for (let i = 0; i < events.length; i++) {
+          const event = events[i];
+          const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+          
+          if (eventMinutes <= currentTimeMinutes) {
+            lastEvent = event;
+          } else if (nextEvent.time === '--') {
+            nextEvent = event;
           }
-        });
-        
-        // If no times found today, use tomorrow's first times
-        if (nextOpen === '--' && marina.open1 && marina.open1 !== '--') {
-          nextOpen = marina.open1 + ' (tomorrow)';
-        }
-        if (nextClose === '--' && marina.close1 && marina.close1 !== '--') {
-          nextClose = marina.close1 + ' (tomorrow)';
         }
         
-        return { nextOpen, nextClose };
+        // If no last event found, it was yesterday's last event
+        if (lastEvent.time === '--' && events.length > 0) {
+          lastEvent = { ...events[events.length - 1], time: events[events.length - 1].time + ' (yesterday)' };
+        }
+        
+        // If no next event found, it's tomorrow's first event
+        if (nextEvent.time === '--' && events.length > 0) {
+          nextEvent = { ...events[0], time: events[0].time + ' (tomorrow)' };
+        }
+        
+        return { lastEvent, nextEvent };
       };
       
       return {
         currentHeight: currentHeight,
-        nextHigh: nextHigh,
-        nextLow: nextLow,
+        lastTide: lastTide,
+        nextTide: nextTide,
         marinaTimes: marinaTimes,
         allTides: tideExtremes,
         hourlyData: allTideData,
-        calculateNextMarinaTimes: calculateNextMarinaTimes
+        calculateMarinaEvents: calculateMarinaEvents
       };
       
     } catch (error) {
@@ -412,16 +413,16 @@ const GuernseyRibApp = () => {
           if (parsedTides) {
             setMarinaTimes(parsedTides.marinaTimes);
             const selectedMarina = parsedTides.marinaTimes[settings.marina] || {};
-            const nextMarinaTimes = parsedTides.calculateNextMarinaTimes(selectedMarina);
+            const marinaEvents = parsedTides.calculateMarinaEvents(selectedMarina);
             setCurrentConditions(prev => ({
               ...prev,
               tides: {
                 ...prev.tides,
                 currentHeight: parsedTides.currentHeight,
-                nextHigh: parsedTides.nextHigh,
-                nextLow: parsedTides.nextLow,
-                marinaOpen: nextMarinaTimes.nextOpen,
-                marinaClosed: nextMarinaTimes.nextClose,
+                lastTide: parsedTides.lastTide,
+                nextTide: parsedTides.nextTide,
+                lastMarinaEvent: marinaEvents.lastEvent,
+                nextMarinaEvent: marinaEvents.nextEvent,
                 sillClearance: typeof parsedTides.currentHeight === 'number' ? parsedTides.currentHeight > (settings.boatDraft + 0.5) : false,
                 allTides: parsedTides.allTides
               }
@@ -484,16 +485,6 @@ const GuernseyRibApp = () => {
     const windSpeed = typeof currentConditions.wind.speed === 'number' ? currentConditions.wind.speed : parseFloat(currentConditions.wind.speed) || 0;
     const waveHeight = typeof currentConditions.waves.height === 'number' ? currentConditions.waves.height : parseFloat(currentConditions.waves.height) || 0;
     const tideHeight = typeof currentConditions.tides.currentHeight === 'number' ? currentConditions.tides.currentHeight : parseFloat(currentConditions.tides.currentHeight) || 0;
-    
-    // Check if marina is currently open
-    const marinaOpenStr = currentConditions.tides.marinaOpen || '--';
-    const marinaCloseStr = currentConditions.tides.marinaClosed || '--';
-    const isMarinaTomorrow = marinaOpenStr.includes('(tomorrow)') || marinaCloseStr.includes('(tomorrow)');
-    
-    if (isMarinaTomorrow) {
-      score -= 20;
-      factors.push('Marina closed today');
-    }
     
     if (windSpeed > 20) {
       score -= 40;
@@ -559,7 +550,11 @@ const GuernseyRibApp = () => {
       icon = '❌';
     }
 
-    return { score, rating, color, icon, factors };
+    // Check if marina is currently closed
+    const nextMarinaEvent = currentConditions.tides.nextMarinaEvent || { type: '--' };
+    const isMarinaClosed = nextMarinaEvent.type === 'Opened' || nextMarinaEvent.time?.includes('(tomorrow)');
+
+    return { score, rating, color, icon, factors, isMarinaClosed };
   };
 
   const conditions = calculateConditions();
@@ -643,6 +638,11 @@ const GuernseyRibApp = () => {
       ),
       conditions.factors.length > 0 && React.createElement('div', { className: "mt-2 text-xs sm:text-sm text-center sm:text-left" },
         React.createElement('strong', null, 'Factors:'), ` ${conditions.factors.join(', ')}`
+      ),
+      conditions.isMarinaClosed && React.createElement('div', { className: "mt-3 text-center" },
+        React.createElement('span', { className: "bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold" }, 
+          '--- MARINA CLOSED ---'
+        )
       )
     ),
 
@@ -654,68 +654,78 @@ const GuernseyRibApp = () => {
           React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌊'),
           'TIDES'
         ),
-        React.createElement('div', { className: "grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4" },
-          // Left column - Tide information
-          React.createElement('div', { className: "space-y-3" },
-            // Current Height
-            React.createElement('div', { className: "text-center p-3 bg-blue-200 rounded" },
-              React.createElement('div', { className: "text-xs sm:text-sm text-blue-700" }, 'Current Height'),
-              React.createElement('div', { className: "text-xl sm:text-2xl font-bold text-blue-900" }, 
-                typeof currentConditions.tides.currentHeight === 'number' ? `${currentConditions.tides.currentHeight.toFixed(1)}m` : currentConditions.tides.currentHeight
+        React.createElement('div', { className: "space-y-3" },
+          // Row 1 - Tide Events
+          React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
+            // Last Tide Event
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
+              React.createElement('div', { className: "text-xs text-blue-700" }, 
+                currentConditions.tides.lastTide.type !== '--' ? 
+                  `Last ${currentConditions.tides.lastTide.type.charAt(0).toUpperCase() + currentConditions.tides.lastTide.type.slice(1)}` : 
+                  'Last Tide'
+              ),
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
+                currentConditions.tides.lastTide.time
+              ),
+              React.createElement('div', { className: "text-xs sm:text-sm text-blue-800" }, 
+                currentConditions.tides.lastTide.height
               )
             ),
-            // Determine which tide is next
-            (() => {
-              const nextHighTime = currentConditions.tides.nextHigh.time.replace(' (tomorrow)', '');
-              const nextLowTime = currentConditions.tides.nextLow.time.replace(' (tomorrow)', '');
-              const nextHighMinutes = nextHighTime !== '--' ? parseInt(nextHighTime.split(':')[0]) * 60 + parseInt(nextHighTime.split(':')[1]) : Infinity;
-              const nextLowMinutes = nextLowTime !== '--' ? parseInt(nextLowTime.split(':')[0]) * 60 + parseInt(nextLowTime.split(':')[1]) : Infinity;
-              const highIsNext = nextHighMinutes < nextLowMinutes;
-              
-              return React.createElement(React.Fragment, null,
-                // First tide (whichever is next)
-                React.createElement('div', { className: "text-center p-2 bg-blue-50 border border-blue-200 rounded" },
-                  React.createElement('div', { className: "text-xs text-blue-600" }, highIsNext ? 'Next High' : 'Next Low'),
-                  React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-800" }, highIsNext ? currentConditions.tides.nextHigh.time : currentConditions.tides.nextLow.time),
-                  React.createElement('div', { className: "text-xs sm:text-sm text-blue-700" }, highIsNext ? currentConditions.tides.nextHigh.height : currentConditions.tides.nextLow.height)
-                ),
-                // Second tide (opposite of first)
-                React.createElement('div', { className: "text-center p-2 bg-blue-50 border border-blue-200 rounded" },
-                  React.createElement('div', { className: "text-xs text-blue-600" }, highIsNext ? 'Next Low' : 'Next High'),
-                  React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-800" }, highIsNext ? currentConditions.tides.nextLow.time : currentConditions.tides.nextHigh.time),
-                  React.createElement('div', { className: "text-xs sm:text-sm text-blue-700" }, highIsNext ? currentConditions.tides.nextLow.height : currentConditions.tides.nextHigh.height)
-                )
-              );
-            })()
+            // Current Height
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
+              React.createElement('div', { className: "text-xs text-blue-700" }, 'Current Height'),
+              React.createElement('div', { className: "text-lg sm:text-xl font-bold text-blue-900" }, 
+                typeof currentConditions.tides.currentHeight === 'number' ? 
+                  `${currentConditions.tides.currentHeight.toFixed(1)}m` : 
+                  currentConditions.tides.currentHeight
+              )
+            ),
+            // Next Tide Event
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
+              React.createElement('div', { className: "text-xs text-blue-700" }, 
+                currentConditions.tides.nextTide.type !== '--' ? 
+                  `Next ${currentConditions.tides.nextTide.type.charAt(0).toUpperCase() + currentConditions.tides.nextTide.type.slice(1)}` : 
+                  'Next Tide'
+              ),
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
+                currentConditions.tides.nextTide.time
+              ),
+              React.createElement('div', { className: "text-xs sm:text-sm text-blue-800" }, 
+                currentConditions.tides.nextTide.height
+              )
+            )
           ),
           
-          // Right column - Marina information
-          React.createElement('div', { className: "space-y-3" },
-            // Determine which marina event is next
-            (() => {
-              const openTime = currentConditions.tides.marinaOpen.replace(' (tomorrow)', '');
-              const closeTime = currentConditions.tides.marinaClosed.replace(' (tomorrow)', '');
-              const openMinutes = openTime !== '--' ? parseInt(openTime.split(':')[0]) * 60 + parseInt(openTime.split(':')[1]) : Infinity;
-              const closeMinutes = closeTime !== '--' ? parseInt(closeTime.split(':')[0]) * 60 + parseInt(closeTime.split(':')[1]) : Infinity;
-              const openIsNext = openMinutes < closeMinutes;
-              
-              return React.createElement(React.Fragment, null,
-                // Spacer to align with current height - only on desktop
-                React.createElement('div', { className: "hidden sm:block h-[76px]" }),
-                // First marina event (whichever is next)
-                React.createElement('div', { className: "text-center p-2 bg-blue-50 border border-blue-200 rounded" },
-                  React.createElement('div', { className: "text-xs text-blue-600" }, openIsNext ? 'Marina Opens' : 'Marina Closes'),
-                  React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-800" }, openIsNext ? currentConditions.tides.marinaOpen : currentConditions.tides.marinaClosed),
-                  React.createElement('div', { className: "text-xs text-blue-700" }, `(at ${settings.boatDraft}m depth)`)
-                ),
-                // Second marina event (opposite of first)
-                React.createElement('div', { className: "text-center p-2 bg-blue-50 border border-blue-200 rounded" },
-                  React.createElement('div', { className: "text-xs text-blue-600" }, openIsNext ? 'Marina Closes' : 'Marina Opens'),
-                  React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-800" }, openIsNext ? currentConditions.tides.marinaClosed : currentConditions.tides.marinaOpen),
-                  React.createElement('div', { className: "text-xs text-blue-700" }, `(at ${settings.boatDraft}m depth)`)
-                )
-              );
-            })()
+          // Row 2 - Marina Events
+          React.createElement('div', { className: "grid grid-cols-2 gap-2 sm:gap-3" },
+            // Last Marina Event
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
+              React.createElement('div', { className: "text-xs text-blue-700" }, 
+                currentConditions.tides.lastMarinaEvent.type !== '--' ?
+                  `Marina ${currentConditions.tides.lastMarinaEvent.type}` :
+                  'Last Marina Event'
+              ),
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
+                currentConditions.tides.lastMarinaEvent.time
+              ),
+              React.createElement('div', { className: "text-xs text-blue-800" }, 
+                `(at ${settings.boatDraft}m depth)`
+              )
+            ),
+            // Next Marina Event
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
+              React.createElement('div', { className: "text-xs text-blue-700" }, 
+                currentConditions.tides.nextMarinaEvent.type !== '--' ?
+                  `Marina ${currentConditions.tides.nextMarinaEvent.type === 'Opened' ? 'Opens' : 'Closes'}` :
+                  'Next Marina Event'
+              ),
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
+                currentConditions.tides.nextMarinaEvent.time
+              ),
+              React.createElement('div', { className: "text-xs text-blue-800" }, 
+                `(at ${settings.boatDraft}m depth)`
+              )
+            )
           )
         ),
         React.createElement('div', { className: "text-xs text-blue-600 italic text-left border-t border-blue-200 pt-2 mt-3 sm:mt-4" },
