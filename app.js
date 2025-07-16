@@ -44,3 +44,4 @@
         const reqDepth = Math.round(settings.boatDraft * 100);
         const tideUrl = `https://tides.digimap.gg/?year=${now.getFullYear()}&yearDay=${yearDay}&reqDepth=${reqDepth}`;
         console.log('Fetching tide data from:', tideUrl);
+        const tideResponse = await fetch(workingProxy + encodeURIComponent(tideUrl));
