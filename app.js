@@ -13,7 +13,7 @@ const GuernseyRibApp = () => {
     riskTolerance: 'moderate'
   });
 
-  // Current conditions with real tide data structure
+  // Current conditions with real data structure
   const [currentConditions, setCurrentConditions] = useState({
     tides: {
       currentHeight: 7.2,
@@ -21,7 +21,7 @@ const GuernseyRibApp = () => {
       nextLow: { time: '20:45', height: 2.1 },
       sillClearance: true,
       marinaOpen: true,
-      allTides: [] // Will store the full tide schedule
+      allTides: []
     },
     wind: {
       speed: 12,
@@ -41,7 +41,6 @@ const GuernseyRibApp = () => {
     }
   });
 
-  // Forecast data (simulated)
   const [forecast, setForecast] = useState([
     { time: '12:00', wind: {speed: 12, dir: 'W'}, waves: {height: 0.8, dir: 'WSW'}, weather: 'Sunny', score: 'good' },
     { time: '15:00', wind: {speed: 8, dir: 'SW'}, waves: {height: 0.5, dir: 'W'}, weather: 'Sunny', score: 'excellent' },
@@ -51,51 +50,32 @@ const GuernseyRibApp = () => {
     { time: '12:00+1', wind: {speed: 22, dir: 'N'}, waves: {height: 1.5, dir: 'N'}, weather: 'Rain', score: 'dangerous' }
   ]);
 
-  // Function to parse detailed hourly tide data from HTML content
+  // Parse detailed tide data
   const parseTideData = (htmlContent) => {
     try {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
-      
-      // Find all tide tables (multiple tables with hourly data)
       const tables = doc.querySelectorAll('table.table-condensed.table-bordered');
       
-      if (tables.length === 0) {
-        console.log('Could not find tide tables in HTML content');
-        return null;
-      }
-      
-      console.log(`Found ${tables.length} tide tables, parsing hourly data...`);
+      if (tables.length === 0) return null;
       
       const allTideData = [];
-      
-      // Parse each table to extract hourly tide data
-      tables.forEach((table, tableIndex) => {
+      tables.forEach((table) => {
         const rows = table.querySelectorAll('tbody tr');
-        
         rows.forEach(row => {
           const timeCell = row.querySelector('td b');
           const heightDiv = row.querySelector('td .pull-right');
-          
           if (timeCell && heightDiv) {
             const time = timeCell.textContent.trim();
-            const heightText = heightDiv.textContent.trim();
-            const height = parseFloat(heightText);
-            
+            const height = parseFloat(heightDiv.textContent.trim());
             if (time && !isNaN(height)) {
-              allTideData.push({
-                time: time,
-                height: height
-              });
+              allTideData.push({ time, height });
             }
           }
         });
       });
       
-      if (allTideData.length === 0) {
-        console.log('No valid tide data found');
-        return null;
-      }
+      if (allTideData.length === 0) return null;
       
       // Sort by time
       allTideData.sort((a, b) => {
@@ -104,40 +84,25 @@ const GuernseyRibApp = () => {
         return (timeA[0] * 60 + timeA[1]) - (timeB[0] * 60 + timeB[1]);
       });
       
-      console.log(`Parsed ${allTideData.length} tide readings`);
-      
-      // Find peaks (highs) and troughs (lows)
+      // Find extremes
       const tideExtremes = [];
       for (let i = 1; i < allTideData.length - 1; i++) {
         const prev = allTideData[i - 1];
         const curr = allTideData[i];
         const next = allTideData[i + 1];
         
-        // Check for local maximum (high tide)
         if (curr.height > prev.height && curr.height > next.height) {
-          tideExtremes.push({
-            type: 'high',
-            time: curr.time,
-            height: curr.height
-          });
-        }
-        // Check for local minimum (low tide)
-        else if (curr.height < prev.height && curr.height < next.height) {
-          tideExtremes.push({
-            type: 'low',
-            time: curr.time,
-            height: curr.height
-          });
+          tideExtremes.push({ type: 'high', time: curr.time, height: curr.height });
+        } else if (curr.height < prev.height && curr.height < next.height) {
+          tideExtremes.push({ type: 'low', time: curr.time, height: curr.height });
         }
       }
       
-      // Get current time and find current tide height
+      // Get current time
       const now = new Date();
-      const currentHour = now.getHours();
-      const currentMinute = now.getMinutes();
-      const currentTimeMinutes = currentHour * 60 + currentMinute;
+      const currentTimeMinutes = now.getHours() * 60 + now.getMinutes();
       
-      // Find closest tide reading to current time
+      // Find closest reading
       let closestReading = allTideData[0];
       let smallestDiff = Math.abs(currentTimeMinutes - (parseInt(closestReading.time.split(':')[0]) * 60 + parseInt(closestReading.time.split(':')[1])));
       
@@ -150,7 +115,7 @@ const GuernseyRibApp = () => {
         }
       });
       
-      // Find next high and low tides from current time
+      // Find next extremes
       const nextHigh = tideExtremes.find(extreme => {
         const extremeMinutes = parseInt(extreme.time.split(':')[0]) * 60 + parseInt(extreme.time.split(':')[1]);
         return extreme.type === 'high' && extremeMinutes > currentTimeMinutes;
@@ -161,143 +126,12 @@ const GuernseyRibApp = () => {
         return extreme.type === 'low' && extremeMinutes > currentTimeMinutes;
       });
       
-      console.log(`Current tide height: ${closestReading.height}m at ${closestReading.time}`);
-      console.log(`Found ${tideExtremes.length} tide extremes`);
-      
       return {
         allTides: tideExtremes,
-        allReadings: allTideData,
         nextHigh: nextHigh || null,
         nextLow: nextLow || null,
-        currentHeight: closestReading.height,
-        currentTime: closestReading.time
-      // Function to parse Windguru widget data
-  const parseWindguruData = (scriptContent) => {
-    try {
-      // Extract data from the widget script response
-      // Look for data arrays in the JavaScript
-      const windSpeedMatch = scriptContent.match(/WINDSPD.*?\[(.*?)\]/);
-      const windDirMatch = scriptContent.match(/SMER.*?\[(.*?)\]/);
-      const gustMatch = scriptContent.match(/GUST.*?\[(.*?)\]/);
-      const waveHeightMatch = scriptContent.match(/HTSGW.*?\[(.*?)\]/);
-      const waveDirMatch = scriptContent.match(/DIRPW.*?\[(.*?)\]/);
-      const wavePeriodMatch = scriptContent.match(/PERPW.*?\[(.*?)\]/);
-
-      if (!windSpeedMatch || !waveHeightMatch) {
-        console.log('Could not find wind/wave data in Windguru response');
-        return null;
-      }
-
-      // Parse arrays and get current values (first element is current)
-      const windSpeeds = windSpeedMatch[1].split(',').map(v => parseFloat(v.trim()));
-      const windDirs = windDirMatch ? windDirMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
-      const gusts = gustMatch ? gustMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
-      const waveHeights = waveHeightMatch[1].split(',').map(v => parseFloat(v.trim()));
-      const waveDirs = waveDirMatch ? waveDirMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
-      const wavePeriods = wavePeriodMatch ? wavePeriodMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
-
-      // Convert wind direction from degrees to compass
-      const degreesToCompass = (degrees) => {
-        const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-        return directions[Math.round(degrees / 22.5) % 16];
-      // Function to parse BBC Weather data
-  const parseBBCWeatherData = (htmlContent) => {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, 'text/html');
-      
-      // Extract weather condition
-      const conditionElement = doc.querySelector('.wr-weather-type__text');
-      const condition = conditionElement ? conditionElement.textContent.trim() : 'Unknown';
-      
-      // Extract temperature (Celsius)
-      const tempElement = doc.querySelector('.wr-value--temperature--c span[aria-hidden="true"]');
-      const tempText = tempElement ? tempElement.textContent.trim() : '0°';
-      const temperature = parseInt(tempText.replace('°', '')) || 0;
-      
-      // Extract visibility
-      const visibilityElement = doc.querySelector('.wr-c-station-data__observation:contains("Visibility:")');
-      let visibility = 10000; // Default good visibility
-      if (visibilityElement) {
-        const visText = visibilityElement.textContent.toLowerCase();
-        if (visText.includes('very poor')) visibility = 500;
-        else if (visText.includes('poor')) visibility = 2000;
-        else if (visText.includes('moderate')) visibility = 5000;
-        else if (visText.includes('good')) visibility = 10000;
-        else if (visText.includes('very good')) visibility = 20000;
-        else if (visText.includes('excellent')) visibility = 40000;
-      }
-      
-      // Extract humidity
-      const humidityElement = doc.querySelector('.wr-c-station-data__observation:contains("Humidity:")');
-      let humidity = 50;
-      if (humidityElement) {
-        const humText = humidityElement.textContent;
-        const humMatch = humText.match(/(\d+)%/);
-        if (humMatch) humidity = parseInt(humMatch[1]);
-      }
-      
-      // Extract pressure
-      const pressureElement = doc.querySelector('.wr-c-station-data__observation:contains("Pressure:")');
-      let pressure = 1013;
-      if (pressureElement) {
-        const pressText = pressureElement.textContent;
-        const pressMatch = pressText.match(/(\d+)mb/);
-        if (pressMatch) pressure = parseInt(pressMatch[1]);
-      }
-      
-      // Determine rainfall based on condition
-      let rainfall = 0;
-      const conditionLower = condition.toLowerCase();
-      if (conditionLower.includes('drizzle')) rainfall = 0.5;
-      else if (conditionLower.includes('light rain')) rainfall = 1;
-      else if (conditionLower.includes('rain')) rainfall = 2;
-      else if (conditionLower.includes('heavy rain')) rainfall = 5;
-      
-      console.log(`BBC Weather: ${condition}, ${temperature}°C, visibility ${visibility}m, humidity ${humidity}%`);
-      
-      return {
-        condition: condition,
-        temperature: temperature,
-        visibility: visibility,
-        humidity: humidity,
-        pressure: pressure,
-        rainfall: rainfall
+        currentHeight: closestReading.height
       };
-      
-    } catch (error) {
-      console.error('Error parsing BBC Weather data:', error);
-      return null;
-    }
-  };
-
-      const currentWindSpeed = windSpeeds[0] || 0;
-      const currentWindDir = windDirs.length > 0 ? degreesToCompass(windDirs[0]) : 'N';
-      const currentGusts = gusts.length > 0 ? gusts[0] : currentWindSpeed + 5;
-      const currentWaveHeight = waveHeights[0] || 0;
-      const currentWaveDir = waveDirs.length > 0 ? degreesToCompass(waveDirs[0]) : 'N';
-      const currentWavePeriod = wavePeriods.length > 0 ? wavePeriods[0] : 6;
-
-      console.log(`Windguru data: Wind ${currentWindSpeed}kt ${currentWindDir}, Gusts ${currentGusts}kt, Waves ${currentWaveHeight}m ${currentWaveDir}`);
-
-      return {
-        wind: {
-          speed: currentWindSpeed,
-          direction: currentWindDir,
-          gusts: currentGusts
-        },
-        waves: {
-          height: currentWaveHeight,
-          direction: currentWaveDir,
-          period: currentWavePeriod
-        }
-      };
-
-    } catch (error) {
-      console.error('Error parsing Windguru data:', error);
-      return null;
-    }
-  };
       
     } catch (error) {
       console.error('Error parsing tide data:', error);
@@ -305,29 +139,110 @@ const GuernseyRibApp = () => {
     }
   };
 
-  // Enhanced live data update function with real tide and wind parsing
+  // Parse Windguru data
+  const parseWindguruData = (scriptContent) => {
+    try {
+      const windSpeedMatch = scriptContent.match(/WINDSPD.*?\[(.*?)\]/);
+      const windDirMatch = scriptContent.match(/SMER.*?\[(.*?)\]/);
+      const gustMatch = scriptContent.match(/GUST.*?\[(.*?)\]/);
+      const waveHeightMatch = scriptContent.match(/HTSGW.*?\[(.*?)\]/);
+      const waveDirMatch = scriptContent.match(/DIRPW.*?\[(.*?)\]/);
+      const wavePeriodMatch = scriptContent.match(/PERPW.*?\[(.*?)\]/);
+
+      if (!windSpeedMatch || !waveHeightMatch) return null;
+
+      const windSpeeds = windSpeedMatch[1].split(',').map(v => parseFloat(v.trim()));
+      const windDirs = windDirMatch ? windDirMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
+      const gusts = gustMatch ? gustMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
+      const waveHeights = waveHeightMatch[1].split(',').map(v => parseFloat(v.trim()));
+      const waveDirs = waveDirMatch ? waveDirMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
+      const wavePeriods = wavePeriodMatch ? wavePeriodMatch[1].split(',').map(v => parseFloat(v.trim())) : [];
+
+      const degreesToCompass = (degrees) => {
+        const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+        return directions[Math.round(degrees / 22.5) % 16];
+      };
+
+      return {
+        wind: {
+          speed: windSpeeds[0] || 0,
+          direction: windDirs.length > 0 ? degreesToCompass(windDirs[0]) : 'N',
+          gusts: gusts.length > 0 ? gusts[0] : windSpeeds[0] + 5
+        },
+        waves: {
+          height: waveHeights[0] || 0,
+          direction: waveDirs.length > 0 ? degreesToCompass(waveDirs[0]) : 'N',
+          period: wavePeriods.length > 0 ? wavePeriods[0] : 6
+        }
+      };
+    } catch (error) {
+      console.error('Error parsing Windguru data:', error);
+      return null;
+    }
+  };
+
+  // Parse BBC Weather data
+  const parseBBCWeatherData = (htmlContent) => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
+      
+      const conditionElement = doc.querySelector('.wr-weather-type__text');
+      const condition = conditionElement ? conditionElement.textContent.trim() : 'Unknown';
+      
+      const tempElement = doc.querySelector('.wr-value--temperature--c span[aria-hidden="true"]');
+      const tempText = tempElement ? tempElement.textContent.trim() : '0°';
+      const temperature = parseInt(tempText.replace('°', '')) || 0;
+      
+      let visibility = 10000;
+      const visibilityElements = doc.querySelectorAll('.wr-c-station-data__observation');
+      for (let el of visibilityElements) {
+        if (el.textContent.includes('Visibility:')) {
+          const visText = el.textContent.toLowerCase();
+          if (visText.includes('very poor')) visibility = 500;
+          else if (visText.includes('poor')) visibility = 2000;
+          else if (visText.includes('moderate')) visibility = 5000;
+          else if (visText.includes('good')) visibility = 10000;
+          else if (visText.includes('very good')) visibility = 20000;
+          else if (visText.includes('excellent')) visibility = 40000;
+          break;
+        }
+      }
+      
+      let rainfall = 0;
+      const conditionLower = condition.toLowerCase();
+      if (conditionLower.includes('drizzle')) rainfall = 0.5;
+      else if (conditionLower.includes('light rain')) rainfall = 1;
+      else if (conditionLower.includes('rain')) rainfall = 2;
+      else if (conditionLower.includes('heavy rain')) rainfall = 5;
+      
+      return {
+        condition,
+        temperature,
+        visibility,
+        rainfall
+      };
+    } catch (error) {
+      console.error('Error parsing BBC Weather data:', error);
+      return null;
+    }
+  };
+
+  // Update live data
   const updateLiveData = async () => {
     setIsUpdating(true);
     try {
       const proxyUrl = 'https://api.allorigins.win/get?url=';
       
-      console.log('Fetching live data...');
-      
-      // Fetch real tide data from digimap.gg
+      // Tide data
       try {
-        console.log('Fetching tide data from digimap.gg...');
         const tideUrl = 'https://tides.digimap.gg/?year=2025&yearDay=196&reqDepth=100';
         const tideResponse = await fetch(proxyUrl + encodeURIComponent(tideUrl));
         const tideData = await tideResponse.json();
         
-        if (tideData && tideData.contents) {
-          console.log('Received tide data, parsing...');
+        if (tideData?.contents) {
           const parsedTides = parseTideData(tideData.contents);
-          
           if (parsedTides) {
-            console.log('Successfully parsed tide data:', parsedTides);
-            
-            // Update tide conditions with real data
             setCurrentConditions(prev => ({
               ...prev,
               tides: {
@@ -336,121 +251,56 @@ const GuernseyRibApp = () => {
                 nextHigh: parsedTides.nextHigh || prev.tides.nextHigh,
                 nextLow: parsedTides.nextLow || prev.tides.nextLow,
                 allTides: parsedTides.allTides,
-                // Calculate sill clearance based on current height and boat draft
-                sillClearance: parsedTides.currentHeight > (settings.boatDraft + 0.5), // Add 0.5m safety margin
-                marinaOpen: true // Assume marina is open if we have tide data
+                sillClearance: parsedTides.currentHeight > (settings.boatDraft + 0.5),
+                marinaOpen: true
               }
             }));
-          } else {
-            console.log('Failed to parse tide data, using simulated data');
           }
         }
       } catch (error) {
         console.log('Tide fetch failed:', error);
       }
 
-      // Fetch real wind/wave data from Windguru widget
+      // Wind/Wave data
       try {
-        console.log('Fetching wind/wave data from Windguru...');
         const windguruUrl = 'https://www.windguru.cz/js/widget.php?s=35647&m=100&p=WINDSPD,SMER,GUST,HTSGW,DIRPW,PERPW&wj=knots&waj=m&lng=en';
         const windguruResponse = await fetch(proxyUrl + encodeURIComponent(windguruUrl));
         const windguruData = await windguruResponse.json();
         
-        if (windguruData && windguruData.contents) {
-          console.log('Received Windguru data, parsing...');
+        if (windguruData?.contents) {
           const parsedWindWave = parseWindguruData(windguruData.contents);
-          
           if (parsedWindWave) {
-            console.log('Successfully parsed Windguru data:', parsedWindWave);
-            
-            // Update wind and wave conditions with real data
             setCurrentConditions(prev => ({
               ...prev,
               wind: parsedWindWave.wind,
               waves: parsedWindWave.waves
             }));
-          } else {
-            console.log('Failed to parse Windguru data, using simulated data');
-            // Fallback to simulated wind/wave data
-            setCurrentConditions(prev => ({
-              ...prev,
-              wind: {
-                speed: Math.max(5, prev.wind.speed + (Math.random() - 0.5) * 4),
-                direction: ['W', 'SW', 'NW', 'E', 'SE'][Math.floor(Math.random() * 5)],
-                gusts: Math.max(8, prev.wind.speed + 3 + (Math.random() * 6))
-              },
-              waves: {
-                ...prev.waves,
-                height: Math.max(0.2, prev.waves.height + (Math.random() - 0.5) * 0.4)
-              }
-            }));
           }
         }
       } catch (error) {
         console.log('Windguru fetch failed:', error);
-        // Fallback to simulated data
-        setCurrentConditions(prev => ({
-          ...prev,
-          wind: {
-            speed: Math.max(5, prev.wind.speed + (Math.random() - 0.5) * 4),
-            direction: ['W', 'SW', 'NW', 'E', 'SE'][Math.floor(Math.random() * 5)],
-            gusts: Math.max(8, prev.wind.speed + 3 + (Math.random() * 6))
-          },
-          waves: {
-            ...prev.waves,
-            height: Math.max(0.2, prev.waves.height + (Math.random() - 0.5) * 0.4)
-          }
-        }));
       }
 
-      // Fetch real weather data from BBC Weather
+      // Weather data
       try {
-        console.log('Fetching weather data from BBC Weather...');
         const bbcWeatherUrl = 'https://www.bbc.co.uk/weather/6296594';
         const bbcResponse = await fetch(proxyUrl + encodeURIComponent(bbcWeatherUrl));
         const bbcData = await bbcResponse.json();
         
-        if (bbcData && bbcData.contents) {
-          console.log('Received BBC Weather data, parsing...');
+        if (bbcData?.contents) {
           const parsedWeather = parseBBCWeatherData(bbcData.contents);
-          
           if (parsedWeather) {
-            console.log('Successfully parsed BBC Weather data:', parsedWeather);
-            
-            // Update weather conditions with real data
             setCurrentConditions(prev => ({
               ...prev,
               weather: parsedWeather
-            }));
-          } else {
-            console.log('Failed to parse BBC Weather data, using simulated data');
-            // Fallback to simulated weather data
-            setCurrentConditions(prev => ({
-              ...prev,
-              weather: {
-                ...prev.weather,
-                condition: ['Sunny', 'Partly Cloudy', 'Cloudy', 'Light Rain'][Math.floor(Math.random() * 4)],
-                visibility: Math.max(1000, 10000 + (Math.random() - 0.5) * 5000)
-              }
             }));
           }
         }
       } catch (error) {
         console.log('BBC Weather fetch failed:', error);
-        // Fallback to simulated data
-        setCurrentConditions(prev => ({
-          ...prev,
-          weather: {
-            ...prev.weather,
-            condition: ['Sunny', 'Partly Cloudy', 'Cloudy', 'Light Rain'][Math.floor(Math.random() * 4)],
-            visibility: Math.max(1000, 10000 + (Math.random() - 0.5) * 5000)
-          }
-        }));
       }
       
       setLastUpdated(new Date());
-      console.log('Live data update completed');
-      
     } catch (error) {
       console.error('Error updating live data:', error);
       alert('Failed to fetch live data. Please try again.');
@@ -459,12 +309,11 @@ const GuernseyRibApp = () => {
     }
   };
 
-  // Calculate sailing conditions score (enhanced with real tide data)
+  // Calculate conditions
   const calculateConditions = (wind, waves, weather, tides) => {
     let score = 100;
     let factors = [];
     
-    // Wind assessment
     if (wind.speed > 20) {
       score -= 40;
       factors.push('Strong winds');
@@ -473,14 +322,13 @@ const GuernseyRibApp = () => {
       factors.push('Moderate winds');
     }
 
-    // Wave assessment with directional logic
     let adjustedWaveHeight = waves.height;
     if (wind.direction.includes('W')) {
-      adjustedWaveHeight *= 0.7; // Treat as calmer
+      adjustedWaveHeight *= 0.7;
     } else if (wind.direction.includes('N') || wind.direction.includes('S')) {
-      adjustedWaveHeight *= 1.5; // Treat as rougher
+      adjustedWaveHeight *= 1.5;
     } else if (wind.direction.includes('E')) {
-      adjustedWaveHeight *= 1.2; // Proceed with caution
+      adjustedWaveHeight *= 1.2;
     }
 
     if (adjustedWaveHeight > 1.0) {
@@ -491,7 +339,6 @@ const GuernseyRibApp = () => {
       factors.push('Moderate seas');
     }
 
-    // Weather assessment
     if (weather.condition.includes('Rain')) {
       score -= 25;
       factors.push('Rain');
@@ -501,7 +348,6 @@ const GuernseyRibApp = () => {
       factors.push('Poor visibility');
     }
 
-    // Enhanced tide assessment using real data
     if (!tides.sillClearance) {
       score -= 50;
       factors.push('Insufficient depth');
@@ -511,13 +357,11 @@ const GuernseyRibApp = () => {
       factors.push('Marina closed');
     }
     
-    // Add factor for low tide conditions
     if (tides.currentHeight < 3.0) {
       score -= 15;
       factors.push('Low tide conditions');
     }
 
-    // Determine overall rating
     let rating, color, icon;
     if (score >= 80) {
       rating = 'Excellent';
@@ -547,7 +391,6 @@ const GuernseyRibApp = () => {
       React.createElement('span', { className: "text-lg mr-2" }, '⚙️'),
       'Settings'
     ),
-    
     React.createElement('div', { className: "space-y-4" },
       React.createElement('div', null,
         React.createElement('label', { className: "block text-sm font-medium mb-1" }, 'Marina'),
@@ -561,7 +404,6 @@ const GuernseyRibApp = () => {
           React.createElement('option', { value: "Beaucette" }, 'Beaucette Marina')
         )
       ),
-
       React.createElement('div', null,
         React.createElement('label', { className: "block text-sm font-medium mb-1" }, 'Boat Draft (m)'),
         React.createElement('input', {
@@ -572,7 +414,6 @@ const GuernseyRibApp = () => {
           className: "w-full p-2 border rounded"
         })
       ),
-
       React.createElement('div', null,
         React.createElement('label', { className: "block text-sm font-medium mb-1" }, 'Max Wind Speed (knots)'),
         React.createElement('input', {
@@ -582,7 +423,6 @@ const GuernseyRibApp = () => {
           className: "w-full p-2 border rounded"
         })
       ),
-
       React.createElement('div', null,
         React.createElement('label', { className: "block text-sm font-medium mb-1" }, 'Max Wave Height (m)'),
         React.createElement('input', {
@@ -593,7 +433,6 @@ const GuernseyRibApp = () => {
           className: "w-full p-2 border rounded"
         })
       ),
-
       React.createElement('div', null,
         React.createElement('label', { className: "block text-sm font-medium mb-1" }, 'Risk Tolerance'),
         React.createElement('select', {
@@ -610,7 +449,6 @@ const GuernseyRibApp = () => {
   );
 
   const CurrentConditions = () => React.createElement('div', { className: "space-y-4" },
-    // Overall Status
     React.createElement('div', { className: `rounded-lg p-6 ${conditions.color} border-l-4 border-current` },
       React.createElement('div', { className: "flex items-center justify-between" },
         React.createElement('div', { className: "flex items-center" },
@@ -627,9 +465,8 @@ const GuernseyRibApp = () => {
       )
     ),
 
-    // Detailed Conditions Grid
     React.createElement('div', { className: "grid grid-cols-1 md:grid-cols-2 gap-4" },
-      // Enhanced Tides Display with Real Data
+      // Tides
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
           React.createElement('span', { className: "text-lg mr-2" }, '🌊'),
@@ -647,11 +484,10 @@ const GuernseyRibApp = () => {
             React.createElement('span', { className: "mr-1" }, currentConditions.tides.marinaOpen ? '✅' : '❌'),
             'Marina Access'
           ),
-          // Show all tide times if we have real data
           currentConditions.tides.allTides.length > 0 && React.createElement('div', { className: "mt-3 pt-2 border-t text-xs" },
             React.createElement('strong', null, 'Today\'s Tide Schedule:'),
             React.createElement('div', { className: "grid grid-cols-2 gap-1 mt-1" },
-              currentConditions.tides.allTides.map((tide, index) => 
+              currentConditions.tides.allTides.slice(0, 6).map((tide, index) => 
                 React.createElement('div', { key: index, className: "flex justify-between" },
                   React.createElement('span', null, tide.time),
                   React.createElement('span', null, `${tide.type} ${tide.height}m`)
@@ -662,7 +498,7 @@ const GuernseyRibApp = () => {
         )
       ),
 
-      // Wind (unchanged for now)
+      // Wind
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
           React.createElement('span', { className: "text-lg mr-2" }, '💨'),
@@ -680,7 +516,7 @@ const GuernseyRibApp = () => {
         )
       ),
 
-      // Waves (unchanged for now)
+      // Waves
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
           React.createElement('span', { className: "text-lg mr-2" }, '🌊'),
@@ -698,7 +534,7 @@ const GuernseyRibApp = () => {
         )
       ),
 
-      // Weather (unchanged for now)
+      // Weather
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
           React.createElement('span', { className: "text-lg mr-2" }, '👁️'),
@@ -758,7 +594,6 @@ const GuernseyRibApp = () => {
   );
 
   return React.createElement('div', { className: "min-h-screen bg-blue-50" },
-    // Header
     React.createElement('div', { className: "bg-blue-900 text-white p-4" },
       React.createElement('div', { className: "max-w-6xl mx-auto" },
         React.createElement('div', { className: "flex items-center justify-between" },
@@ -793,7 +628,6 @@ const GuernseyRibApp = () => {
       )
     ),
 
-    // Navigation
     React.createElement('div', { className: "bg-white shadow-sm" },
       React.createElement('div', { className: "max-w-6xl mx-auto px-4" },
         React.createElement('div', { className: "flex space-x-8" },
@@ -825,14 +659,12 @@ const GuernseyRibApp = () => {
       )
     ),
 
-    // Main Content
     React.createElement('div', { className: "max-w-6xl mx-auto p-4" },
       currentView === 'current' && CurrentConditions(),
       currentView === 'forecast' && ForecastView(),
       currentView === 'settings' && SettingsPanel()
     ),
 
-    // Data Sources Footer
     React.createElement('div', { className: "bg-gray-100 mt-8 p-4 text-xs text-gray-600" },
       React.createElement('div', { className: "max-w-6xl mx-auto" },
         React.createElement('strong', null, 'Data Sources:'), ' Tides: digimap.gg (LIVE) | Wind/Waves: Windguru (LIVE) | Weather: BBC Weather (LIVE)',
@@ -843,7 +675,6 @@ const GuernseyRibApp = () => {
   );
 };
 
-// Render the app using React 18 createRoot method
 const container = document.getElementById('root');
 const root = ReactDOM.createRoot(container);
 root.render(React.createElement(GuernseyRibApp));
