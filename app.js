@@ -290,9 +290,10 @@ const GuernseyRibApp = () => {
         return;
       }
       
-      // Fetch tide data
+      // Fetch tide data with updated URL
       try {
-        const tideUrl = 'https://tides.digimap.gg/?year=2025&yearDay=196&reqDepth=100';
+        const tideUrl = 'https://tides.digimap.gg/?year=2025&yearDay=197&reqDepth=100';
+        console.log('Fetching tide data from:', tideUrl);
         const tideResponse = await fetch(workingProxy + encodeURIComponent(tideUrl));
         
         let content;
@@ -303,8 +304,12 @@ const GuernseyRibApp = () => {
           content = await tideResponse.text();
         }
         
+        console.log('Tide data received, length:', content?.length);
+        console.log('First 500 chars:', content?.substring(0, 500));
+        
         if (content) {
           const parsedTides = parseTideData(content);
+          console.log('Parsed tide result:', parsedTides);
           if (parsedTides) {
             setMarinaTimes(parsedTides.marinaTimes);
             const selectedMarina = parsedTides.marinaTimes[settings.marina] || {};
