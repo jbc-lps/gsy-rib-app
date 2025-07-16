@@ -56,33 +56,51 @@ const GuernseyRibApp = () => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
       
-      // Parse marina opening times
-      const marinaTable = doc.querySelector('table thead:contains("Marina Opening Times")');
-      let marinaTimes = {};
+      // Parse marina opening times - find table by text content
+      const marinaTimes = {};
+      const tables = doc.querySelectorAll('table');
+      let marinaTable = null;
+      
+      for (let table of tables) {
+        const thead = table.querySelector('thead');
+        if (thead && thead.textContent.includes('Marina Opening Times')) {
+          marinaTable = table;
+          break;
+        }
+      }
+      
       if (marinaTable) {
-        const marinaRows = marinaTable.closest('table').querySelectorAll('tbody tr, tr:not(:first-child)');
-        marinaRows.forEach(row => {
-          const cells = row.querySelectorAll('td');
+        const rows = marinaTable.querySelectorAll('tr');
+        for (let i = 2; i < rows.length; i++) { // Skip header rows
+          const cells = rows[i].querySelectorAll('td');
           if (cells.length >= 5) {
             const marina = cells[0].textContent.trim();
-            const times = {
+            marinaTimes[marina] = {
               close1: cells[1].textContent.trim() || '-',
               open1: cells[2].textContent.trim() || '-', 
               close2: cells[3].textContent.trim() || '-',
               open2: cells[4].textContent.trim() || '-'
             };
-            marinaTimes[marina] = times;
           }
-        });
+        }
       }
       
       // Parse peak tide times
-      const peakTideTable = doc.querySelector('table thead:contains("Peak Tide Times")');
       let tideExtremes = [];
-      if (peakTideTable) {
-        const tideRows = peakTideTable.closest('table').querySelectorAll('tbody tr, tr:not(:first-child)');
-        tideRows.forEach(row => {
-          const cells = row.querySelectorAll('td');
+      let peakTable = null;
+      
+      for (let table of tables) {
+        const thead = table.querySelector('thead');
+        if (thead && thead.textContent.includes('Peak Tide Times')) {
+          peakTable = table;
+          break;
+        }
+      }
+      
+      if (peakTable) {
+        const rows = peakTable.querySelectorAll('tr');
+        for (let i = 1; i < rows.length; i++) { // Skip header
+          const cells = rows[i].querySelectorAll('td');
           if (cells.length >= 3) {
             const type = cells[0].textContent.trim().toLowerCase();
             const time = cells[1].textContent.trim();
@@ -91,12 +109,12 @@ const GuernseyRibApp = () => {
               tideExtremes.push({ type, time, height });
             }
           }
-        });
+        }
       }
       
       // Parse hourly tide data
-      const hourlyTables = doc.querySelectorAll('table.table-condensed.table-bordered');
       const allTideData = [];
+      const hourlyTables = doc.querySelectorAll('table.table-condensed.table-bordered');
       hourlyTables.forEach((table) => {
         const rows = table.querySelectorAll('tbody tr');
         rows.forEach(row => {
@@ -342,9 +360,9 @@ const GuernseyRibApp = () => {
         console.log('Windguru widget failed:', error.message);
       }
 
-      // Fetch weather data from BBC RSS
+      // Fetch weather data from BBC RSS (try different endpoint)
       try {
-        const bbcRSSUrl = 'https://weather-service-thunder-broker.api.bbci.co.uk/en/observation/rss/6296594';
+        const bbcRSSUrl = 'https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/6296594';
         const bbcResponse = await fetch(workingProxy + encodeURIComponent(bbcRSSUrl));
         
         let content;
