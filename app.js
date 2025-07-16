@@ -45,3 +45,82 @@
         const tideUrl = `https://tides.digimap.gg/?year=${now.getFullYear()}&yearDay=${yearDay}&reqDepth=${reqDepth}`;
         console.log('Fetching tide data from:', tideUrl);
         const tideResponse = await fetch(workingProxy + encodeURIComponent(tideUrl));
+        
+        let content;
+        if (workingProxy.includes('allorigins.win')) {
+          const tideData = await tideResponse.json();
+          content = tideData.contents;
+        } else {
+          content = await tideResponse.text();
+        }
+        
+        console.log('Tide data received, length:', content?.length);
+        console.log('First 500 chars:', content?.substring(0, 500));
+        
+        if (content) {
+          const parsedTides = parseTideData(content);
+          console.log('Parsed tide result:', parsedTides);
+          if (parsedTides) {
+            setMarinaTimes(parsedTides.marinaTimes);
+            const selectedMarina = parsedTides.marinaTimes[settings.marina] || {};
+            setCurrentConditions(prev => ({
+              ...prev,
+              tides: {
+                ...prev.tides,
+                currentHeight: parsedTides.currentHeight,
+                nextHigh: parsedTides.nextHigh,
+                nextLow: parsedTides.nextLow,
+                marinaOpen: selectedMarina.open1 || '--',
+                marinaClosed: selectedMarina.close2 || '--',
+                sillClearance: typeof parsedTides.currentHeight === 'number' ? parsedTides.currentHeight > (settings.boatDraft + 0.5) : false,
+                allTides: parsedTides.allTides
+              }
+            }));
+            console.log('Successfully updated tide data');
+          }
+        }
+      } catch (error) {
+        console.log('Tide fetch failed:', error.message);
+      }
+
+      // Load Windguru widget instead of fetching
+      try {
+        loadWindguruWidget();
+      } catch (error) {
+        console.log('Windguru widget failed:', error.message);
+      }
+
+      // Fetch weather data from BBC RSS (try different endpoint)
+      try {
+        const bbcRSSUrl = 'https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/6296594';
+        const bbcResponse = await fetch(workingProxy + encodeURIComponent(bbcRSSUrl));
+        
+        let content;
+        if (workingProxy.includes('allorigins.win')) {
+          const bbcData = await bbcResponse.json();
+          content = bbcData.contents;
+        } else {
+          content = await bbcResponse.text();
+        }
+        
+        if (content) {
+          const parsedWeather = parseBBCWeatherRSS(content);
+          if (parsedWeather) {
+            setCurrentConditions(prev => ({
+              ...prev,
+              weather: parsedWeather
+            }));
+            console.log('Successfully updated weather data');
+          }
+        }
+      } catch (error) {
+        console.log('BBC Weather RSS fetch failed:', error.message);
+      }
+      
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error('Error updating live data:', error);
+    } finally {
+      setIsUpdating(false);
+    }
+  };
