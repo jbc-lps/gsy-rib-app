@@ -1,17 +1,5 @@
 const { useState, useEffect } = React;
 
-// Access Lucide icons correctly for browser environment
-const Settings = lucide.Settings;
-const MapPin = lucide.MapPin;
-const Wind = lucide.Wind;
-const Waves = lucide.Waves;
-const Eye = lucide.Eye;
-const CloudRain = lucide.CloudRain;
-const Clock = lucide.Clock;
-const AlertTriangle = lucide.AlertTriangle;
-const CheckCircle = lucide.CheckCircle;
-const XCircle = lucide.XCircle;
-
 const GuernseyRibApp = () => {
   const [currentView, setCurrentView] = useState('current');
   const [isUpdating, setIsUpdating] = useState(false);
@@ -176,19 +164,19 @@ const GuernseyRibApp = () => {
     if (score >= 80) {
       rating = 'Excellent';
       color = 'text-green-600 bg-green-50';
-      icon = React.createElement(CheckCircle, { className: "w-5 h-5 text-green-600" });
+      icon = '✅'; // Green checkmark emoji
     } else if (score >= 60) {
       rating = 'Good';
       color = 'text-green-600 bg-green-50';
-      icon = React.createElement(CheckCircle, { className: "w-5 h-5 text-green-600" });
+      icon = '✅'; // Green checkmark emoji
     } else if (score >= 40) {
       rating = 'Caution';
       color = 'text-yellow-600 bg-yellow-50';
-      icon = React.createElement(AlertTriangle, { className: "w-5 h-5 text-yellow-600" });
+      icon = '⚠️'; // Warning triangle emoji
     } else {
       rating = 'Poor/Dangerous';
       color = 'text-red-600 bg-red-50';
-      icon = React.createElement(XCircle, { className: "w-5 h-5 text-red-600" });
+      icon = '❌'; // Red X emoji
     }
 
     return { score, rating, color, icon, factors };
@@ -198,7 +186,7 @@ const GuernseyRibApp = () => {
 
   const SettingsPanel = () => React.createElement('div', { className: "bg-white rounded-lg shadow-lg p-6" },
     React.createElement('h2', { className: "text-xl font-bold mb-4 flex items-center" },
-      React.createElement(Settings, { className: "w-5 h-5 mr-2" }),
+      React.createElement('span', { className: "text-lg mr-2" }, '⚙️'), // Settings gear emoji
       'Settings'
     ),
     
@@ -268,7 +256,7 @@ const GuernseyRibApp = () => {
     React.createElement('div', { className: `rounded-lg p-6 ${conditions.color} border-l-4 border-current` },
       React.createElement('div', { className: "flex items-center justify-between" },
         React.createElement('div', { className: "flex items-center" },
-          conditions.icon,
+          React.createElement('span', { className: "text-2xl mr-2" }, conditions.icon),
           React.createElement('h2', { className: "text-2xl font-bold ml-2" }, conditions.rating)
         ),
         React.createElement('div', { className: "text-right" },
@@ -286,7 +274,7 @@ const GuernseyRibApp = () => {
       // Tides
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
-          React.createElement(Waves, { className: "w-4 h-4 mr-2 text-blue-600" }),
+          React.createElement('span', { className: "text-lg mr-2" }, '🌊'), // Wave emoji
           `Tides - ${settings.marina}`
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
@@ -294,11 +282,11 @@ const GuernseyRibApp = () => {
           React.createElement('div', null, 'Next High: ', React.createElement('strong', null, `${currentConditions.tides.nextHigh.time} (${currentConditions.tides.nextHigh.height}m)`)),
           React.createElement('div', null, 'Next Low: ', React.createElement('strong', null, `${currentConditions.tides.nextLow.time} (${currentConditions.tides.nextLow.height}m)`)),
           React.createElement('div', { className: `flex items-center ${currentConditions.tides.sillClearance ? 'text-green-600' : 'text-red-600'}` },
-            currentConditions.tides.sillClearance ? React.createElement(CheckCircle, { className: "w-4 h-4 mr-1" }) : React.createElement(XCircle, { className: "w-4 h-4 mr-1" }),
+            React.createElement('span', { className: "mr-1" }, currentConditions.tides.sillClearance ? '✅' : '❌'),
             `Draft Clearance (${settings.boatDraft}m)`
           ),
           React.createElement('div', { className: `flex items-center ${currentConditions.tides.marinaOpen ? 'text-green-600' : 'text-red-600'}` },
-            currentConditions.tides.marinaOpen ? React.createElement(CheckCircle, { className: "w-4 h-4 mr-1" }) : React.createElement(XCircle, { className: "w-4 h-4 mr-1" }),
+            React.createElement('span', { className: "mr-1" }, currentConditions.tides.marinaOpen ? '✅' : '❌'),
             'Marina Access'
           )
         )
@@ -307,7 +295,7 @@ const GuernseyRibApp = () => {
       // Wind
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
-          React.createElement(Wind, { className: "w-4 h-4 mr-2 text-gray-600" }),
+          React.createElement('span', { className: "text-lg mr-2" }, '💨'), // Wind emoji
           'Wind'
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
@@ -325,7 +313,7 @@ const GuernseyRibApp = () => {
       // Waves
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
-          React.createElement(Waves, { className: "w-4 h-4 mr-2 text-cyan-600" }),
+          React.createElement('span', { className: "text-lg mr-2" }, '🌊'), // Wave emoji
           'Sea State'
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
@@ -343,7 +331,7 @@ const GuernseyRibApp = () => {
       // Weather
       React.createElement('div', { className: "bg-white rounded-lg shadow p-4" },
         React.createElement('h3', { className: "font-bold flex items-center mb-3" },
-          React.createElement(Eye, { className: "w-4 h-4 mr-2 text-purple-600" }),
+          React.createElement('span', { className: "text-lg mr-2" }, '👁️'), // Eye emoji for visibility
           'Weather'
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
@@ -359,7 +347,7 @@ const GuernseyRibApp = () => {
   const ForecastView = () => React.createElement('div', { className: "bg-white rounded-lg shadow" },
     React.createElement('div', { className: "p-4 border-b" },
       React.createElement('h2', { className: "text-xl font-bold flex items-center" },
-        React.createElement(Clock, { className: "w-5 h-5 mr-2" }),
+        React.createElement('span', { className: "text-lg mr-2" }, '🕐'), // Clock emoji
         '48-Hour Forecast'
       )
     ),
@@ -367,26 +355,26 @@ const GuernseyRibApp = () => {
       React.createElement('div', { className: "space-y-3" },
         forecast.map((period, index) => {
           let statusColor = 'bg-gray-100';
-          let statusIcon = React.createElement(AlertTriangle, { className: "w-4 h-4" });
+          let statusIcon = '⚠️'; // Warning triangle
           
           if (period.score === 'excellent') {
             statusColor = 'bg-green-100 border-l-4 border-green-500';
-            statusIcon = React.createElement(CheckCircle, { className: "w-4 h-4 text-green-600" });
+            statusIcon = '✅'; // Green checkmark
           } else if (period.score === 'good') {
             statusColor = 'bg-green-50 border-l-4 border-green-400';
-            statusIcon = React.createElement(CheckCircle, { className: "w-4 h-4 text-green-500" });
+            statusIcon = '✅'; // Green checkmark
           } else if (period.score === 'poor') {
             statusColor = 'bg-yellow-50 border-l-4 border-yellow-500';
-            statusIcon = React.createElement(AlertTriangle, { className: "w-4 h-4 text-yellow-600" });
+            statusIcon = '⚠️'; // Warning triangle
           } else if (period.score === 'dangerous') {
             statusColor = 'bg-red-50 border-l-4 border-red-500';
-            statusIcon = React.createElement(XCircle, { className: "w-4 h-4 text-red-600" });
+            statusIcon = '❌'; // Red X
           }
 
           return React.createElement('div', { key: index, className: `p-3 rounded ${statusColor}` },
             React.createElement('div', { className: "flex items-center justify-between" },
               React.createElement('div', { className: "flex items-center" },
-                statusIcon,
+                React.createElement('span', { className: "mr-2" }, statusIcon),
                 React.createElement('span', { className: "font-medium ml-2" }, period.time)
               ),
               React.createElement('div', { className: "text-sm text-gray-600" },
@@ -406,7 +394,7 @@ const GuernseyRibApp = () => {
         React.createElement('div', { className: "flex items-center justify-between" },
           React.createElement('div', null,
             React.createElement('h1', { className: "text-2xl font-bold flex items-center" },
-              React.createElement(MapPin, { className: "w-6 h-6 mr-2" }),
+              React.createElement('span', { className: "text-2xl mr-2" }, '📍'), // Map pin emoji
               'Guernsey RIB Conditions'
             ),
             React.createElement('p', { className: "text-blue-200 text-sm" }, 'Bailiwick waters sailing conditions')
@@ -423,9 +411,7 @@ const GuernseyRibApp = () => {
                   'Updating...'
                 ) :
                 React.createElement(React.Fragment, null,
-                  React.createElement('svg', { className: "w-4 h-4 mr-2", fill: "none", stroke: "currentColor", viewBox: "0 0 24 24" },
-                    React.createElement('path', { strokeLinecap: "round", strokeLinejoin: "round", strokeWidth: 2, d: "M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" })
-                  ),
+                  React.createElement('span', { className: "mr-2" }, '🔄'), // Refresh emoji
                   'Update Now'
                 )
             ),
