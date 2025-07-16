@@ -552,7 +552,7 @@ const GuernseyRibApp = () => {
           `Tides - ${settings.marina}`
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
-          React.createElement('div', null, 'Current Height: ', React.createElement('strong', null, `${currentConditions.tides.currentHeight.toFixed(1)}m`)),
+          React.createElement('div', null, 'Current Height: ', React.createElement('strong', null, typeof currentConditions.tides.currentHeight === 'number' ? `${currentConditions.tides.currentHeight.toFixed(1)}m` : currentConditions.tides.currentHeight)),
           currentConditions.tides.nextHigh && React.createElement('div', null, 'Next High: ', React.createElement('strong', null, `${currentConditions.tides.nextHigh.time} (${currentConditions.tides.nextHigh.height}m)`)),
           currentConditions.tides.nextLow && React.createElement('div', null, 'Next Low: ', React.createElement('strong', null, `${currentConditions.tides.nextLow.time} (${currentConditions.tides.nextLow.height}m)`)),
           React.createElement('div', { className: `flex items-center ${currentConditions.tides.sillClearance ? 'text-green-600' : 'text-red-600'}` },
@@ -584,9 +584,9 @@ const GuernseyRibApp = () => {
           'Wind'
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
-          React.createElement('div', null, 'Speed: ', React.createElement('strong', null, `${Math.round(currentConditions.wind.speed)} knots`)),
+          React.createElement('div', null, 'Speed: ', React.createElement('strong', null, typeof currentConditions.wind.speed === 'number' ? `${Math.round(currentConditions.wind.speed)} knots` : currentConditions.wind.speed)),
           React.createElement('div', null, 'Direction: ', React.createElement('strong', null, currentConditions.wind.direction)),
-          React.createElement('div', null, 'Gusts: ', React.createElement('strong', null, `${Math.round(currentConditions.wind.gusts)} knots`)),
+          React.createElement('div', null, 'Gusts: ', React.createElement('strong', null, typeof currentConditions.wind.gusts === 'number' ? `${Math.round(currentConditions.wind.gusts)} knots` : currentConditions.wind.gusts)),
           React.createElement('div', { className: "text-xs text-gray-500 mt-2" },
             currentConditions.wind.direction.includes('W') && "Westerly winds - favorable conditions",
             (currentConditions.wind.direction.includes('N') || currentConditions.wind.direction.includes('S')) && "North/South winds - proceed with extreme caution",
@@ -602,9 +602,9 @@ const GuernseyRibApp = () => {
           'Sea State'
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
-          React.createElement('div', null, 'Wave Height: ', React.createElement('strong', null, `${currentConditions.waves.height.toFixed(1)}m`)),
+          React.createElement('div', null, 'Wave Height: ', React.createElement('strong', null, typeof currentConditions.waves.height === 'number' ? `${currentConditions.waves.height.toFixed(1)}m` : currentConditions.waves.height)),
           React.createElement('div', null, 'Direction: ', React.createElement('strong', null, currentConditions.waves.direction)),
-          React.createElement('div', null, 'Period: ', React.createElement('strong', null, `${currentConditions.waves.period}s`)),
+          React.createElement('div', null, 'Period: ', React.createElement('strong', null, typeof currentConditions.waves.period === 'number' ? `${currentConditions.waves.period}s` : currentConditions.waves.period)),
           React.createElement('div', { className: "text-xs text-gray-500 mt-2" },
             currentConditions.waves.height <= 0.5 && "Calm conditions",
             currentConditions.waves.height > 0.5 && currentConditions.waves.height <= 1.0 && "Moderate seas",
@@ -621,9 +621,9 @@ const GuernseyRibApp = () => {
         ),
         React.createElement('div', { className: "space-y-2 text-sm" },
           React.createElement('div', null, 'Condition: ', React.createElement('strong', null, currentConditions.weather.condition)),
-          React.createElement('div', null, 'Visibility: ', React.createElement('strong', null, `${(currentConditions.weather.visibility/1000).toFixed(1)}km`)),
-          React.createElement('div', null, 'Temperature: ', React.createElement('strong', null, `${currentConditions.weather.temperature}°C`)),
-          React.createElement('div', null, 'Rainfall: ', React.createElement('strong', null, `${currentConditions.weather.rainfall}mm/hr`))
+          React.createElement('div', null, 'Visibility: ', React.createElement('strong', null, typeof currentConditions.weather.visibility === 'number' ? `${(currentConditions.weather.visibility/1000).toFixed(1)}km` : currentConditions.weather.visibility)),
+          React.createElement('div', null, 'Temperature: ', React.createElement('strong', null, typeof currentConditions.weather.temperature === 'number' ? `${currentConditions.weather.temperature}°C` : currentConditions.weather.temperature)),
+          React.createElement('div', null, 'Rainfall: ', React.createElement('strong', null, typeof currentConditions.weather.rainfall === 'number' ? `${currentConditions.weather.rainfall}mm/hr` : currentConditions.weather.rainfall))
         )
       )
     )
