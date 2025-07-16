@@ -232,16 +232,73 @@ const GuernseyRibApp = () => {
   const updateLiveData = async () => {
     setIsUpdating(true);
     try {
-      const proxyUrl = 'https://api.allorigins.win/get?url=';
+      // Try multiple CORS proxies
+      const proxies = [
+        'https://corsproxy.io/?',
+        'https://api.codetabs.com/v1/proxy?quest=',
+        'https://cors-anywhere.herokuapp.com/',
+        'https://api.allorigins.win/get?url='
+      ];
+      
+      let workingProxy = null;
+      
+      // Test proxies
+      for (const proxy of proxies) {
+        try {
+          const testUrl = proxy + encodeURIComponent('https://httpbin.org/json');
+          const testResponse = await fetch(testUrl);
+          if (testResponse.ok) {
+            workingProxy = proxy;
+            console.log('Using proxy:', proxy);
+            break;
+          }
+        } catch (e) {
+          continue;
+        }
+      }
+      
+      if (!workingProxy) {
+        console.log('No working CORS proxy found');
+        // Set error indicators instead of simulated data
+        setCurrentConditions(prev => ({
+          ...prev,
+          wind: {
+            speed: '#Err',
+            direction: '#Err',
+            gusts: '#Err'
+          },
+          waves: {
+            height: '#Err',
+            direction: '#Err',
+            period: '#Err'
+          },
+          weather: {
+            condition: '#Err',
+            temperature: '#Err',
+            visibility: '#Err',
+            rainfall: '#Err'
+          },
+          tides: {
+            ...prev.tides,
+            currentHeight: '#Err',
+            nextHigh: { time: '#Err', height: '#Err' },
+            nextLow: { time: '#Err', height: '#Err' }
+          }
+        }));
+        setLastUpdated(new Date());
+        setIsUpdating(false);
+        return;
+      }
       
       // Tide data
       try {
         const tideUrl = 'https://tides.digimap.gg/?year=2025&yearDay=196&reqDepth=100';
-        const tideResponse = await fetch(proxyUrl + encodeURIComponent(tideUrl));
+        const tideResponse = await fetch(workingProxy + encodeURIComponent(tideUrl));
         const tideData = await tideResponse.json();
         
-        if (tideData?.contents) {
-          const parsedTides = parseTideData(tideData.contents);
+        const content = tideData.contents || tideData;
+        if (content) {
+          const parsedTides = parseTideData(content);
           if (parsedTides) {
             setCurrentConditions(prev => ({
               ...prev,
@@ -255,55 +312,59 @@ const GuernseyRibApp = () => {
                 marinaOpen: true
               }
             }));
+            console.log('Successfully updated tide data');
           }
         }
       } catch (error) {
-        console.log('Tide fetch failed:', error);
+        console.log('Tide fetch failed:', error.message);
       }
 
       // Wind/Wave data
       try {
         const windguruUrl = 'https://www.windguru.cz/js/widget.php?s=35647&m=100&p=WINDSPD,SMER,GUST,HTSGW,DIRPW,PERPW&wj=knots&waj=m&lng=en';
-        const windguruResponse = await fetch(proxyUrl + encodeURIComponent(windguruUrl));
+        const windguruResponse = await fetch(workingProxy + encodeURIComponent(windguruUrl));
         const windguruData = await windguruResponse.json();
         
-        if (windguruData?.contents) {
-          const parsedWindWave = parseWindguruData(windguruData.contents);
+        const content = windguruData.contents || windguruData;
+        if (content) {
+          const parsedWindWave = parseWindguruData(content);
           if (parsedWindWave) {
             setCurrentConditions(prev => ({
               ...prev,
               wind: parsedWindWave.wind,
               waves: parsedWindWave.waves
             }));
+            console.log('Successfully updated wind/wave data');
           }
         }
       } catch (error) {
-        console.log('Windguru fetch failed:', error);
+        console.log('Windguru fetch failed:', error.message);
       }
 
       // Weather data
       try {
         const bbcWeatherUrl = 'https://www.bbc.co.uk/weather/6296594';
-        const bbcResponse = await fetch(proxyUrl + encodeURIComponent(bbcWeatherUrl));
+        const bbcResponse = await fetch(workingProxy + encodeURIComponent(bbcWeatherUrl));
         const bbcData = await bbcResponse.json();
         
-        if (bbcData?.contents) {
-          const parsedWeather = parseBBCWeatherData(bbcData.contents);
+        const content = bbcData.contents || bbcData;
+        if (content) {
+          const parsedWeather = parseBBCWeatherData(content);
           if (parsedWeather) {
             setCurrentConditions(prev => ({
               ...prev,
               weather: parsedWeather
             }));
+            console.log('Successfully updated weather data');
           }
         }
       } catch (error) {
-        console.log('BBC Weather fetch failed:', error);
+        console.log('BBC Weather fetch failed:', error.message);
       }
       
       setLastUpdated(new Date());
     } catch (error) {
       console.error('Error updating live data:', error);
-      alert('Failed to fetch live data. Please try again.');
     } finally {
       setIsUpdating(false);
     }
