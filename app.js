@@ -572,6 +572,9 @@ const GuernseyRibApp = () => {
                 React.createElement('span', { className: "mr-1" }, currentConditions.tides.sillClearance ? '✅' : '❌'),
                 `${settings.boatDraft}m clearance`
               )
+            ),
+            React.createElement('div', { className: "text-xs text-gray-500 italic mt-2 pt-2 border-t" },
+              'Tide data: © Digimap Tides. Times adjusted for BST when applicable.'
             )
           )
         )
@@ -602,6 +605,9 @@ const GuernseyRibApp = () => {
             currentConditions.wind.direction.includes('W') && "Westerly conditions - favorable",
             (currentConditions.wind.direction.includes('N') || currentConditions.wind.direction.includes('S')) && "North/South conditions - caution",
             currentConditions.wind.direction.includes('E') && !currentConditions.wind.direction.includes('W') && "Easterly conditions - proceed with care"
+          ),
+          React.createElement('div', { className: "text-xs text-gray-500 italic mt-2 pt-2 border-t" },
+            'Wind/Wave data: © Windguru.cz'
           )
         )
       ),
@@ -633,6 +639,9 @@ const GuernseyRibApp = () => {
               React.createElement('span', { className: "text-gray-600" }, 'Visibility: '),
               React.createElement('strong', null, currentConditions.weather.visibility)
             )
+          ),
+          React.createElement('div', { className: "text-xs text-gray-500 italic mt-2 pt-2 border-t" },
+            'Weather data: BBC Weather'
           )
         )
       )
