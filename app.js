@@ -36,10 +36,10 @@ const GuernseyRibApp = () => {
       direction: '-'
     },
     weather: {
+      summary: '-',
       temperature: '-',
-      rainfall: '-',
-      cloudiness: '-',
-      visibility: '-'
+      visibility: '-',
+      time: '-'
     }
   });
 
@@ -190,45 +190,31 @@ const GuernseyRibApp = () => {
       const items = doc.querySelectorAll('item');
       if (items.length === 0) return null;
       
-      // Get current conditions from first item
       const currentItem = items[0];
       const description = currentItem.querySelector('description').textContent;
       const title = currentItem.querySelector('title').textContent;
       
-      // Parse temperature from title: "Wednesday - 15:00 BST: Drizzle, 18°C (65°F)"
+      // Parse from title: "Wednesday - 15:00 BST: Drizzle, 18°C (65°F)"
+      const summaryMatch = title.match(/: ([^,]+),/);
+      const summary = summaryMatch ? summaryMatch[1] : '-';
+      
       const tempMatch = title.match(/(\d+)°C/);
-      const temperature = tempMatch ? parseInt(tempMatch[1]) : '-';
+      const temperature = tempMatch ? `${tempMatch[1]}°C` : '-';
       
-      // Parse description: "Temperature: 18°C (65°F), Wind Direction: West South Westerly, Wind Speed: 16mph, Humidity: 100%, Pressure: 1019mb, Rising, Visibility: Very Poor"
+      const timeMatch = title.match(/(\d{2}:\d{2})/);
+      const time = timeMatch ? timeMatch[1] : '-';
+      
+      // Parse visibility from description
       const visibilityMatch = description.match(/Visibility:\s*([^,]+)/);
-      let visibility = '-';
-      if (visibilityMatch) {
-        const visText = visibilityMatch[1].toLowerCase();
-        if (visText.includes('very poor')) visibility = 'Very Poor';
-        else if (visText.includes('poor')) visibility = 'Poor';
-        else if (visText.includes('moderate')) visibility = 'Moderate';
-        else if (visText.includes('good')) visibility = 'Good';
-        else if (visText.includes('very good')) visibility = 'Very Good';
-        else if (visText.includes('excellent')) visibility = 'Excellent';
-      }
+      const visibility = visibilityMatch ? visibilityMatch[1].trim() : '-';
       
-      // Parse cloudiness from title condition
-      const conditionMatch = title.match(/: ([^,]+),/);
-      const cloudiness = conditionMatch ? conditionMatch[1] : '-';
-      
-      // Determine rainfall
-      let rainfall = 'None';
-      if (cloudiness.toLowerCase().includes('drizzle')) rainfall = 'Light';
-      else if (cloudiness.toLowerCase().includes('rain')) rainfall = 'Moderate';
-      else if (cloudiness.toLowerCase().includes('heavy')) rainfall = 'Heavy';
-      
-      console.log(`BBC Weather RSS: ${temperature}°C, ${cloudiness}, Visibility: ${visibility}`);
+      console.log(`BBC Weather RSS: ${summary}, ${temperature}, Visibility: ${visibility}, Time: ${time}`);
       
       return {
+        summary,
         temperature,
-        rainfall,
-        cloudiness,
-        visibility
+        visibility,
+        time
       };
       
     } catch (error) {
@@ -237,50 +223,39 @@ const GuernseyRibApp = () => {
     }
   };
 
-  // Load Windguru widget
+  // Load Windguru widget directly
   const loadWindguruWidget = () => {
-    // Remove existing widget
-    const existingWidget = document.getElementById('wg_fwdg_35647_100');
-    if (existingWidget) existingWidget.remove();
+    const container = document.getElementById('windguru-widget-container');
+    if (!container) return;
     
-    // Create widget container
-    const widgetContainer = document.createElement('div');
-    widgetContainer.id = 'wg_fwdg_35647_100';
-    document.body.appendChild(widgetContainer);
+    // Clear existing content
+    container.innerHTML = '';
     
-    // Load widget script
+    // Create unique widget ID
+    const widgetId = 'wg_fwdg_35647_100_' + Date.now();
+    
+    // Create script element with widget loader
     const script = document.createElement('script');
-    script.src = 'https://www.windguru.cz/js/widget.php?s=35647&m=100&mw=84&wj=knots&tj=c&waj=m&tij=cm&odh=0&doh=24&fhours=240&hrsm=1&vt=forecasts&lng=en&idbs=1&p=WINDSPD,SMER,HTSGW,DIRPW';
-    script.onload = () => {
-      console.log('Windguru widget loaded');
-      // Extract data from widget after it loads
-      setTimeout(() => extractWindguruData(), 2000);
-    };
-    document.head.appendChild(script);
-  };
-
-  // Extract data from loaded Windguru widget
-  const extractWindguruData = () => {
-    try {
-      // Look for Windguru data in global scope or widget elements
-      if (window.wgData) {
-        const data = window.wgData;
-        setCurrentConditions(prev => ({
-          ...prev,
-          wind: {
-            speed: data.windSpeed?.[0] || '-',
-            direction: data.windDirection?.[0] || '-'
-          },
-          waves: {
-            height: data.waveHeight?.[0] || '-',
-            direction: data.waveDirection?.[0] || '-'
-          }
-        }));
-        console.log('Extracted Windguru data');
-      }
-    } catch (error) {
-      console.log('Could not extract Windguru data:', error);
-    }
+    script.id = widgetId;
+    script.innerHTML = `
+      (function (window, document) {
+        var loader = function () {
+          var arg = ["s=35647","m=100","mw=84","uid=${widgetId}","wj=knots","tj=c","waj=m","tij=cm","odh=0","doh=24","fhours=72","hrsm=1","vt=forecasts","lng=en","idbs=1","p=WINDSPD,SMER,HTSGW,DIRPW"];
+          var script = document.createElement("script");
+          var tag = document.getElementsByTagName("script")[0];
+          script.src = "https://www.windguru.cz/js/widget.php?"+(arg.join("&"));
+          tag.parentNode.insertBefore(script, tag);
+        };
+        if (document.readyState === 'complete') {
+          loader();
+        } else {
+          window.addEventListener ? window.addEventListener("load", loader, false) : window.attachEvent("onload", loader);
+        }
+      })(window, document);
+    `;
+    
+    container.appendChild(script);
+    console.log('Windguru widget script loaded');
   };
 
   // Update live data
@@ -598,35 +573,19 @@ const GuernseyRibApp = () => {
         )
       ),
 
-      // 2. WIND & WAVES  
+      // 2. WIND & WAVES - Direct Widget
       React.createElement('div', { className: "bg-white rounded-lg shadow p-6" },
         React.createElement('h3', { className: "text-xl font-bold flex items-center mb-4 text-gray-700" },
           React.createElement('span', { className: "text-2xl mr-2" }, '💨'),
           'WIND & WAVES'
         ),
-        React.createElement('div', { className: "space-y-4" },
-          React.createElement('div', { className: "grid grid-cols-2 gap-4" },
-            React.createElement('div', { className: "text-center p-3 bg-gray-50 rounded" },
-              React.createElement('div', { className: "text-sm text-gray-600 mb-1" }, 'Wind'),
-              React.createElement('div', { className: "text-xl font-bold" }, currentConditions.wind.speed),
-              React.createElement('div', { className: "text-sm" }, 'knots'),
-              React.createElement('div', { className: "text-sm font-medium mt-1" }, currentConditions.wind.direction)
-            ),
-            React.createElement('div', { className: "text-center p-3 bg-cyan-50 rounded" },
-              React.createElement('div', { className: "text-sm text-gray-600 mb-1" }, 'Waves'),
-              React.createElement('div', { className: "text-xl font-bold" }, currentConditions.waves.height),
-              React.createElement('div', { className: "text-sm" }, 'meters'),
-              React.createElement('div', { className: "text-sm font-medium mt-1" }, currentConditions.waves.direction)
-            )
-          ),
-          React.createElement('div', { className: "text-xs text-gray-500 text-center" },
-            currentConditions.wind.direction.includes('W') && "Westerly conditions - favorable",
-            (currentConditions.wind.direction.includes('N') || currentConditions.wind.direction.includes('S')) && "North/South conditions - caution",
-            currentConditions.wind.direction.includes('E') && !currentConditions.wind.direction.includes('W') && "Easterly conditions - proceed with care"
-          ),
-          React.createElement('div', { className: "text-xs text-gray-500 italic mt-2 pt-2 border-t" },
-            'Wind/Wave data: © Windguru.cz'
+        React.createElement('div', { className: "bg-blue-50 p-4 rounded-lg min-h-[200px]" },
+          React.createElement('div', { id: "windguru-widget-container" },
+            React.createElement('div', { className: "text-center text-gray-500 py-8" }, 'Loading Windguru widget...')
           )
+        ),
+        React.createElement('div', { className: "text-xs text-gray-500 italic mt-2 pt-2 border-t" },
+          'Wind/Wave data: © Windguru.cz'
         )
       ),
 
@@ -636,31 +595,22 @@ const GuernseyRibApp = () => {
           React.createElement('span', { className: "text-2xl mr-2" }, '🌤️'),
           'WEATHER'
         ),
-        React.createElement('div', { className: "space-y-3" },
-          React.createElement('div', { className: "grid grid-cols-2 gap-3" },
-            React.createElement('div', { className: "text-center p-2 border rounded" },
-              React.createElement('div', { className: "text-xs text-gray-600" }, 'Temperature'),
-              React.createElement('div', { className: "font-semibold" }, currentConditions.weather.temperature),
-              React.createElement('div', { className: "text-xs" }, '°C')
-            ),
-            React.createElement('div', { className: "text-center p-2 border rounded" },
-              React.createElement('div', { className: "text-xs text-gray-600" }, 'Rainfall'),
-              React.createElement('div', { className: "font-semibold" }, currentConditions.weather.rainfall)
-            )
+        React.createElement('div', { className: "grid grid-cols-3 gap-3 mb-4" },
+          React.createElement('div', { className: "text-center p-3 bg-orange-50 rounded border border-orange-100" },
+            React.createElement('div', { className: "text-xs text-gray-600 mb-1" }, 'Summary'),
+            React.createElement('div', { className: "font-semibold text-sm" }, currentConditions.weather.summary)
           ),
-          React.createElement('div', { className: "space-y-2" },
-            React.createElement('div', { className: "text-sm" },
-              React.createElement('span', { className: "text-gray-600" }, 'Cloudiness: '),
-              React.createElement('strong', null, currentConditions.weather.cloudiness)
-            ),
-            React.createElement('div', { className: "text-sm" },
-              React.createElement('span', { className: "text-gray-600" }, 'Visibility: '),
-              React.createElement('strong', null, currentConditions.weather.visibility)
-            )
+          React.createElement('div', { className: "text-center p-3 bg-orange-50 rounded border border-orange-100" },
+            React.createElement('div', { className: "text-xs text-gray-600 mb-1" }, 'Temperature'),
+            React.createElement('div', { className: "font-semibold text-sm" }, currentConditions.weather.temperature)
           ),
-          React.createElement('div', { className: "text-xs text-gray-500 italic mt-2 pt-2 border-t" },
-            'Weather data: BBC Weather'
+          React.createElement('div', { className: "text-center p-3 bg-orange-50 rounded border border-orange-100" },
+            React.createElement('div', { className: "text-xs text-gray-600 mb-1" }, 'Visibility'),
+            React.createElement('div', { className: "font-semibold text-sm" }, currentConditions.weather.visibility)
           )
+        ),
+        React.createElement('div', { className: "text-xs text-gray-500 italic text-center" },
+          `Weather data: BBC Weather ${currentConditions.weather.time}`
         )
       )
     )
