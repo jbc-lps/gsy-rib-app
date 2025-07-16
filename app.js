@@ -1,5 +1,16 @@
 const { useState, useEffect } = React;
-const { Settings, MapPin, Wind, Waves, Eye, CloudRain, Clock, AlertTriangle, CheckCircle, XCircle } = lucide;
+
+// Access Lucide icons correctly for browser environment
+const Settings = lucide.Settings;
+const MapPin = lucide.MapPin;
+const Wind = lucide.Wind;
+const Waves = lucide.Waves;
+const Eye = lucide.Eye;
+const CloudRain = lucide.CloudRain;
+const Clock = lucide.Clock;
+const AlertTriangle = lucide.AlertTriangle;
+const CheckCircle = lucide.CheckCircle;
+const XCircle = lucide.XCircle;
 
 const GuernseyRibApp = () => {
   const [currentView, setCurrentView] = useState('current');
@@ -476,5 +487,7 @@ const GuernseyRibApp = () => {
   );
 };
 
-// Render the app
-ReactDOM.render(React.createElement(GuernseyRibApp), document.getElementById('root'));
+// Render the app using React 18 createRoot method
+const container = document.getElementById('root');
+const root = ReactDOM.createRoot(container);
+root.render(React.createElement(GuernseyRibApp));
