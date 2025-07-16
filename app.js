@@ -13,31 +13,31 @@ const GuernseyRibApp = () => {
     riskTolerance: 'moderate'
   });
 
-  // Current conditions with real data structure
+  // Current conditions - start with #Err until first update
   const [currentConditions, setCurrentConditions] = useState({
     tides: {
-      currentHeight: 7.2,
-      nextHigh: { time: '14:30', height: 8.4 },
-      nextLow: { time: '20:45', height: 2.1 },
-      sillClearance: true,
+      currentHeight: '#Err',
+      nextHigh: { time: '#Err', height: '#Err' },
+      nextLow: { time: '#Err', height: '#Err' },
+      sillClearance: false,
       marinaOpen: true,
       allTides: []
     },
     wind: {
-      speed: 12,
-      direction: 'W',
-      gusts: 18
+      speed: '#Err',
+      direction: '#Err',
+      gusts: '#Err'
     },
     waves: {
-      height: 0.8,
-      direction: 'WSW',
-      period: 6
+      height: '#Err',
+      direction: '#Err',
+      period: '#Err'
     },
     weather: {
-      condition: 'Sunny',
-      visibility: 10000,
-      temperature: 18,
-      rainfall: 0
+      condition: '#Err',
+      visibility: '#Err',
+      temperature: '#Err',
+      rainfall: '#Err'
     }
   });
 
@@ -294,9 +294,15 @@ const GuernseyRibApp = () => {
       try {
         const tideUrl = 'https://tides.digimap.gg/?year=2025&yearDay=196&reqDepth=100';
         const tideResponse = await fetch(workingProxy + encodeURIComponent(tideUrl));
-        const tideData = await tideResponse.json();
         
-        const content = tideData.contents || tideData;
+        let content;
+        if (workingProxy.includes('allorigins.win')) {
+          const tideData = await tideResponse.json();
+          content = tideData.contents;
+        } else {
+          content = await tideResponse.text();
+        }
+        
         if (content) {
           const parsedTides = parseTideData(content);
           if (parsedTides) {
@@ -323,9 +329,15 @@ const GuernseyRibApp = () => {
       try {
         const windguruUrl = 'https://www.windguru.cz/js/widget.php?s=35647&m=100&p=WINDSPD,SMER,GUST,HTSGW,DIRPW,PERPW&wj=knots&waj=m&lng=en';
         const windguruResponse = await fetch(workingProxy + encodeURIComponent(windguruUrl));
-        const windguruData = await windguruResponse.json();
         
-        const content = windguruData.contents || windguruData;
+        let content;
+        if (workingProxy.includes('allorigins.win')) {
+          const windguruData = await windguruResponse.json();
+          content = windguruData.contents;
+        } else {
+          content = await windguruResponse.text();
+        }
+        
         if (content) {
           const parsedWindWave = parseWindguruData(content);
           if (parsedWindWave) {
@@ -345,9 +357,15 @@ const GuernseyRibApp = () => {
       try {
         const bbcWeatherUrl = 'https://www.bbc.co.uk/weather/6296594';
         const bbcResponse = await fetch(workingProxy + encodeURIComponent(bbcWeatherUrl));
-        const bbcData = await bbcResponse.json();
         
-        const content = bbcData.contents || bbcData;
+        let content;
+        if (workingProxy.includes('allorigins.win')) {
+          const bbcData = await bbcResponse.json();
+          content = bbcData.contents;
+        } else {
+          content = await bbcResponse.text();
+        }
+        
         if (content) {
           const parsedWeather = parseBBCWeatherData(content);
           if (parsedWeather) {
@@ -661,7 +679,7 @@ const GuernseyRibApp = () => {
           React.createElement('div', null,
             React.createElement('h1', { className: "text-2xl font-bold flex items-center" },
               React.createElement('span', { className: "text-2xl mr-2" }, '📍'),
-              'Guernsey RIB Conditions'
+              'Guernsey RIB Ride'
             ),
             React.createElement('p', { className: "text-blue-200 text-sm" }, 'Bailiwick waters sailing conditions')
           ),
