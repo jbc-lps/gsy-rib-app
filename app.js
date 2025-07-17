@@ -656,8 +656,8 @@ const GuernseyRibApp = () => {
           React.createElement('span', { className: "bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold" }, 
             '--- MARINA CLOSED ---'
           )
-        ),
-      )
+        )
+      ),
 
     // Three Main Factors
     React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch" },
