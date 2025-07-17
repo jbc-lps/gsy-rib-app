@@ -221,14 +221,14 @@ const GuernseyRibApp = () => {
       const calculateMarinaEvents = (marina) => {
         if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
         
-        const events = [
-          { type: 'Opened', time: marina.open1 },
-          { type: 'Closed', time: marina.close1 },
-          { type: 'Opened', time: marina.open2 },
-          { type: 'Closed', time: marina.close2 }
-        ].filter(e => e.time && e.time !== '--');
+        // Create all events for today
+        const events = [];
+        if (marina.open1 && marina.open1 !== '--') events.push({ type: 'Opened', time: marina.open1 });
+        if (marina.close1 && marina.close1 !== '--') events.push({ type: 'Closed', time: marina.close1 });
+        if (marina.open2 && marina.open2 !== '--') events.push({ type: 'Opened', time: marina.open2 });
+        if (marina.close2 && marina.close2 !== '--') events.push({ type: 'Closed', time: marina.close2 });
         
-        // Sort events by time
+        // Sort events chronologically
         events.sort((a, b) => {
           const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
           const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
@@ -238,28 +238,64 @@ const GuernseyRibApp = () => {
         let lastEvent = { time: '--', type: '--' };
         let nextEvent = { time: '--', type: '--' };
         
-        // Find last and next marina events
+        // Find the most recent past event
         for (let i = 0; i < events.length; i++) {
           const event = events[i];
           const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
           
           if (eventMinutes <= currentTimeMinutes) {
             lastEvent = event;
-          } else if (nextEvent.time === '--') {
-            nextEvent = event;
-            break; // Take the first future event
           }
         }
         
-        // If no next event found today, wrap to tomorrow
-        if (nextEvent.time === '--' && events.length > 0) {
-          nextEvent = { ...events[0], time: events[0].time + ' (tomorrow)' };
-        }
-        
-        // If no last event found today, it was yesterday's last event
+        // If no past event today, last event was yesterday's final event
         if (lastEvent.time === '--' && events.length > 0) {
           lastEvent = { ...events[events.length - 1], time: events[events.length - 1].time + ' (yesterday)' };
         }
+        
+        // Logic for next event: if last was "Closed", next must be "Opened" and vice versa
+        if (lastEvent.type === 'Closed') {
+          // Marina is closed, find next opening
+          const nextOpen = events.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
+          });
+          
+          if (nextOpen) {
+            nextEvent = nextOpen;
+          } else {
+            // No more openings today, use tomorrow's first opening
+            const firstOpen = events.find(e => e.type === 'Opened');
+            if (firstOpen) {
+              nextEvent = { ...firstOpen, time: firstOpen.time + ' (tomorrow)' };
+            }
+          }
+        } else if (lastEvent.type === 'Opened') {
+          // Marina is open, find next closing
+          const nextClose = events.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'Closed' && eventMinutes > currentTimeMinutes;
+          });
+          
+          if (nextClose) {
+            nextEvent = nextClose;
+          } else {
+            // No more closings today, use tomorrow's first closing
+            const firstClose = events.find(e => e.type === 'Closed');
+            if (firstClose) {
+              nextEvent = { ...firstClose, time: firstClose.time + ' (tomorrow)' };
+            }
+          }
+        }
+        
+        // Debug logging
+        console.log('Marina events calculation:', {
+          currentTime: `${Math.floor(currentTimeMinutes/60)}:${String(currentTimeMinutes%60).padStart(2,'0')}`,
+          allEvents: events,
+          lastEvent,
+          nextEvent,
+          logic: lastEvent.type === 'Closed' ? 'Last was CLOSED, looking for next OPENED' : 'Last was OPENED, looking for next CLOSED'
+        });
         
         return { lastEvent, nextEvent };
       };
