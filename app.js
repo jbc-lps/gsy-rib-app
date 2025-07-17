@@ -228,6 +228,13 @@ const GuernseyRibApp = () => {
           { type: 'Closed', time: marina.close2 }
         ].filter(e => e.time && e.time !== '--');
         
+        // Sort events by time
+        events.sort((a, b) => {
+          const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
+          const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
+          return timeA - timeB;
+        });
+        
         let lastEvent = { time: '--', type: '--' };
         let nextEvent = { time: '--', type: '--' };
         
@@ -240,17 +247,18 @@ const GuernseyRibApp = () => {
             lastEvent = event;
           } else if (nextEvent.time === '--') {
             nextEvent = event;
+            break; // Take the first future event
           }
         }
         
-        // If no last event found, it was yesterday's last event
-        if (lastEvent.time === '--' && events.length > 0) {
-          lastEvent = { ...events[events.length - 1], time: events[events.length - 1].time + ' (yesterday)' };
-        }
-        
-        // If no next event found, it's tomorrow's first event
+        // If no next event found today, wrap to tomorrow
         if (nextEvent.time === '--' && events.length > 0) {
           nextEvent = { ...events[0], time: events[0].time + ' (tomorrow)' };
+        }
+        
+        // If no last event found today, it was yesterday's last event
+        if (lastEvent.time === '--' && events.length > 0) {
+          lastEvent = { ...events[events.length - 1], time: events[events.length - 1].time + ' (yesterday)' };
         }
         
         return { lastEvent, nextEvent };
