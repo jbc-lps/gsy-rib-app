@@ -565,6 +565,7 @@ const GuernseyRibApp = () => {
       React.createElement('span', { className: "text-lg mr-2" }, '⚙️'),
       'Settings'
     ),
+    );
     React.createElement('div', { className: "space-y-3 sm:space-y-4" },
       React.createElement('div', null,
         React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Marina'),
@@ -620,7 +621,7 @@ const GuernseyRibApp = () => {
           React.createElement('option', { value: "moderate" }, 'Moderate'),
           React.createElement('option', { value: "aggressive" }, 'Aggressive')
         )
-      ),
+      )
   );
   };
 
