@@ -620,7 +620,7 @@ const GuernseyRibApp = () => {
           React.createElement('option', { value: "moderate" }, 'Moderate'),
           React.createElement('option', { value: "aggressive" }, 'Aggressive')
         )
-      )
+      ),
   );
   };
 
