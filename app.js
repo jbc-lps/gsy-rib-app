@@ -807,12 +807,11 @@ const GuernseyRibApp = () => {
             target: '_blank',
             rel: 'noopener noreferrer',
             className: 'hover:underline'
-          },           `Weather data: BBC Weather ${currentConditions.weather.time}`)
+          }, `Weather data: BBC Weather ${currentConditions.weather.time}`)
         )
       )
     )
-   )
-  );
+   );
   };
   
   const ForecastView = () => React.createElement('div', { className: "bg-white rounded-lg shadow p-4 sm:p-6" },
@@ -895,11 +894,11 @@ const GuernseyRibApp = () => {
         React.createElement('strong', null, 'Data Sources:'), 
         React.createElement('span', { className: "block sm:inline" }, ' Tides: digimap.gg | Wind/Waves: Windguru | Weather: BBC RSS'),
         React.createElement('br', { className: "hidden sm:block" }),
-        React.createElement('em', { className: "block mt-1 sm:mt-0" }, 'Auto-updates on load. Click Update Now for latest conditions.'        )
+        React.createElement('em', { className: "block mt-1 sm:mt-0" }, 'Auto-updates on load. Click Update Now for latest conditions.')
       )
     )
   );
-  };
+};
 
 const container = document.getElementById('root');
 const root = ReactDOM.createRoot(container);
