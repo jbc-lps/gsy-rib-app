@@ -622,8 +622,6 @@ const GuernseyRibApp = () => {
         )
       )
     )
-        )
-      )
     )
   );
   };
@@ -641,6 +639,27 @@ const GuernseyRibApp = () => {
     }, []);
     
     return React.createElement('div', { className: "space-y-4" },
+      // Overall Status
+      React.createElement('div', { className: `rounded-lg p-4 sm:p-6 ${conditions.color} border-l-4 border-current` },
+        React.createElement('div', { className: "flex flex-col sm:flex-row items-center justify-between" },
+          React.createElement('div', { className: "flex items-center mb-2 sm:mb-0" },
+            React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, conditions.icon),
+            React.createElement('h2', { className: "text-xl sm:text-2xl font-bold ml-2" }, conditions.rating)
+          ),
+          React.createElement('div', { className: "text-center sm:text-right" },
+            React.createElement('div', { className: "text-xs sm:text-sm opacity-75" }, 'Conditions Score'),
+            React.createElement('div', { className: "text-lg sm:text-xl font-bold" }, `${conditions.score}/100`)
+          )
+        ),
+        conditions.factors.length > 0 && React.createElement('div', { className: "mt-2 text-xs sm:text-sm text-center sm:text-left" },
+          React.createElement('strong', null, 'Factors:'), ` ${conditions.factors.join(', ')}`
+        ),
+        conditions.isMarinaClosed && React.createElement('div', { className: "mt-3 text-center" },
+          React.createElement('span', { className: "bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold" }, 
+            '--- MARINA CLOSED ---'
+          )
+        )
+      ),
     // Overall Status
     React.createElement('div', { className: `rounded-lg p-4 sm:p-6 ${conditions.color} border-l-4 border-current` },
       React.createElement('div', { className: "flex flex-col sm:flex-row items-center justify-between" },
@@ -901,11 +920,10 @@ const GuernseyRibApp = () => {
         React.createElement('strong', null, 'Data Sources:'), 
         React.createElement('span', { className: "block sm:inline" }, ' Tides: digimap.gg | Wind/Waves: Windguru | Weather: BBC RSS'),
         React.createElement('br', { className: "hidden sm:block" }),
-        React.createElement('em', { className: "block mt-1 sm:mt-0" }, 'Auto-updates on load. Click Update Now for latest conditions.')
+        React.createElement('em', { className: "block mt-1 sm:mt-0" }, 'Auto-updates on load. Click Update Now for latest conditions.'        )
       )
-    )
   );
-};
+  };
 
 const container = document.getElementById('root');
 const root = ReactDOM.createRoot(container);
