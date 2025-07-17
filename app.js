@@ -53,6 +53,53 @@ const GuernseyRibApp = () => {
     loadWindguruWidget();
   }, [settings.marina, settings.boatDraft]);
 
+  // Parse BBC weather page for sunrise/sunset times
+  const parseBBCSunTimes = (htmlContent) => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
+      
+      // Find sunrise time
+      const sunriseSpan = doc.querySelector('.wr-c-astro-data__sunrise .wr-c-astro-data__time');
+      const sunsetSpan = doc.querySelector('.wr-c-astro-data__sunset .wr-c-astro-data__time');
+      
+      const sunrise = sunriseSpan ? sunriseSpan.textContent.trim() : null;
+      const sunset = sunsetSpan ? sunsetSpan.textContent.trim() : null;
+      
+      console.log('BBC Sunrise/Sunset:', { sunrise, sunset });
+      
+      return { sunrise, sunset };
+      
+    } catch (error) {
+      console.error('Error parsing BBC sunrise/sunset:', error);
+      return null;
+    }
+  };
+
+  // Check if it's night time using BBC weather data
+  const isNightTime = () => {
+    if (!currentConditions.weather.sunrise || !currentConditions.weather.sunset) {
+      return false; // Default to day if no sun data
+    }
+    
+    const now = new Date();
+    const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+    const currentMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
+    
+    // Parse sunrise/sunset times
+    const sunriseTime = currentConditions.weather.sunrise.split(':');
+    const sunsetTime = currentConditions.weather.sunset.split(':');
+    
+    const sunriseMinutes = parseInt(sunriseTime[0]) * 60 + parseInt(sunriseTime[1]);
+    const sunsetMinutes = parseInt(sunsetTime[0]) * 60 + parseInt(sunsetTime[1]);
+    
+    const nightStart = sunsetMinutes + 30; // 30 minutes after sunset
+    const nightEnd = sunriseMinutes - 30;  // 30 minutes before sunrise
+    
+    // Handle overnight (sunset to midnight, then midnight to sunrise)
+    return currentMinutes >= nightStart || currentMinutes <= nightEnd;
+  };
+
   // Parse tide data and marina times
   const parseTideData = (htmlContent) => {
     try {
