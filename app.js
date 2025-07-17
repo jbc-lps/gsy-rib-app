@@ -621,8 +621,6 @@ const GuernseyRibApp = () => {
           React.createElement('option', { value: "aggressive" }, 'Aggressive')
         )
       )
-    )
-    )
   );
   };
 
@@ -922,6 +920,7 @@ const GuernseyRibApp = () => {
         React.createElement('br', { className: "hidden sm:block" }),
         React.createElement('em', { className: "block mt-1 sm:mt-0" }, 'Auto-updates on load. Click Update Now for latest conditions.'        )
       )
+    )
   );
   };
 
