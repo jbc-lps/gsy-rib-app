@@ -186,45 +186,63 @@ const GuernseyRibApp = () => {
         currentHeight = closestReading ? closestReading.height : '--';
       }
       
-      // Find last and next tide events - simple chronological
+      // Find last and next tide events - determine current state first
       let lastTide = { time: '--', height: '--', type: '--' };
       let nextTide = { time: '--', height: '--', type: '--' };
       
       // Get all tides in chronological order
       const allEvents = [...tideExtremes];
       
-      // Find most recent past tide
+      // Find most recent past tide to determine current state
+      let currentTideState = 'unknown';
+      let lastTideData = null;
+      
       for (let i = 0; i < allEvents.length; i++) {
         const event = allEvents[i];
         const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
         
         if (eventMinutes <= currentTimeMinutes) {
-          lastTide = event;
+          lastTideData = event;
+          currentTideState = event.type; // 'high' or 'low'
         }
       }
       
-      // Find next future tide
-      for (let i = 0; i < allEvents.length; i++) {
-        const event = allEvents[i];
-        const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
-        
-        if (eventMinutes > currentTimeMinutes) {
-          nextTide = event;
-          break;
+      // If no tides today, data problem - don't guess
+      if (!lastTideData) {
+        lastTide = { time: '--', height: '--', type: '--' };
+        nextTide = { time: '--', height: '--', type: '--' };
+      } else {
+        if (currentTideState === 'high') {
+          // Currently FALLING (after high): Last=High, Next=Low
+          lastTide = lastTideData;
+          
+          // Find next low tide
+          const nextLow = allEvents.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'low' && eventMinutes > currentTimeMinutes;
+          });
+          
+          nextTide = nextLow || { time: '--', height: '--', type: '--' };
+          
+        } else if (currentTideState === 'low') {
+          // Currently RISING (after low): Last=Low, Next=High
+          lastTide = lastTideData;
+          
+          // Find next high tide  
+          const nextHigh = allEvents.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'high' && eventMinutes > currentTimeMinutes;
+          });
+          
+          nextTide = nextHigh || { time: '--', height: '--', type: '--' };
+        } else {
+          // Unknown tide state - data problem
+          lastTide = { time: '--', height: '--', type: '--' };
+          nextTide = { time: '--', height: '--', type: '--' };
         }
       }
       
-      // If no past tide today, use yesterday's last
-      if (lastTide.time === '--' && allEvents.length > 0) {
-        lastTide = allEvents[allEvents.length - 1];
-      }
-      
-      // If no future tide today, use tomorrow's first
-      if (nextTide.time === '--' && allEvents.length > 0) {
-        nextTide = allEvents[0];
-      }
-      
-      // Calculate marina events based on current time
+      // Calculate marina events - determine current state first
       const calculateMarinaEvents = (marina) => {
         if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
         
@@ -242,38 +260,55 @@ const GuernseyRibApp = () => {
           return timeA - timeB;
         });
         
-        let lastEvent = { time: '--', type: '--' };
-        let nextEvent = { time: '--', type: '--' };
+        // Find most recent past event to determine current state
+        let currentState = 'unknown';
+        let lastEventData = null;
         
-        // Find most recent past event
         for (let i = 0; i < events.length; i++) {
           const event = events[i];
           const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
           
           if (eventMinutes <= currentTimeMinutes) {
-            lastEvent = event;
+            lastEventData = event;
+            currentState = event.type; // 'Opened' or 'Closed'
           }
         }
         
-        // Find next future event  
-        for (let i = 0; i < events.length; i++) {
-          const event = events[i];
-          const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+        // If no events today, data problem - don't guess
+        if (!lastEventData) {
+          return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
+        }
+        
+        let lastEvent = { time: '--', type: '--' };
+        let nextEvent = { time: '--', type: '--' };
+        
+        if (currentState === 'Opened') {
+          // Currently OPEN: Last=Opened, Next=Closes
+          lastEvent = lastEventData;
           
-          if (eventMinutes > currentTimeMinutes) {
-            nextEvent = event;
-            break;
-          }
-        }
-        
-        // If no past event today, use yesterday's last
-        if (lastEvent.time === '--' && events.length > 0) {
-          lastEvent = events[events.length - 1];
-        }
-        
-        // If no future event today, use tomorrow's first  
-        if (nextEvent.time === '--' && events.length > 0) {
-          nextEvent = events[0];
+          // Find next closing
+          const nextClose = events.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'Closed' && eventMinutes > currentTimeMinutes;
+          });
+          
+          nextEvent = nextClose || { time: '--', type: '--' };
+          
+        } else if (currentState === 'Closed') {
+          // Currently CLOSED: Last=Closed, Next=Opens  
+          lastEvent = lastEventData;
+          
+          // Find next opening
+          const nextOpen = events.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
+          });
+          
+          nextEvent = nextOpen || { time: '--', type: '--' };
+        } else {
+          // Unknown state - data problem
+          lastEvent = { time: '--', type: '--' };
+          nextEvent = { time: '--', type: '--' };
         }
         
         return { lastEvent, nextEvent };
@@ -372,7 +407,165 @@ const GuernseyRibApp = () => {
     console.log('Windguru widget script loaded');
   };
 
-  // Calculate year day for tide URL
+  // Calculate marina events - determine current state first
+  const calculateMarinaEvents = (marina, tomorrowTides, currentTimeMinutes) => {
+    if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
+    
+    // Create all events for today
+    const events = [];
+    if (marina.open1 && marina.open1 !== '--') events.push({ type: 'Opened', time: marina.open1 });
+    if (marina.close1 && marina.close1 !== '--') events.push({ type: 'Closed', time: marina.close1 });
+    if (marina.open2 && marina.open2 !== '--') events.push({ type: 'Opened', time: marina.open2 });
+    if (marina.close2 && marina.close2 !== '--') events.push({ type: 'Closed', time: marina.close2 });
+    
+    // Sort events chronologically
+    events.sort((a, b) => {
+      const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
+      const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
+      return timeA - timeB;
+    });
+    
+    // Find most recent past event to determine current state
+    let currentState = 'unknown';
+    let lastEventData = null;
+    
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+      
+      if (eventMinutes <= currentTimeMinutes) {
+        lastEventData = event;
+        currentState = event.type; // 'Opened' or 'Closed'
+      }
+    }
+    
+    let lastEvent = { time: '--', type: '--' };
+    let nextEvent = { time: '--', type: '--' };
+    
+    // If no events today, data problem - don't guess
+    if (!lastEventData) {
+      return { lastEvent, nextEvent };
+    }
+    
+    if (currentState === 'Opened') {
+      // Currently OPEN: Last=Opened, Next=Closes
+      lastEvent = lastEventData;
+      
+      // Find next closing - first try today
+      const nextClose = events.find(e => {
+        const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+        return e.type === 'Closed' && eventMinutes > currentTimeMinutes;
+      });
+      
+      if (nextClose) {
+        nextEvent = nextClose;
+      } else if (tomorrowTides && tomorrowTides.marinaTimes) {
+        // Use tomorrow's marina data
+        const tomorrowMarina = tomorrowTides.marinaTimes[settings.marina] || {};
+        const tomorrowEvents = [];
+        if (tomorrowMarina.open1 && tomorrowMarina.open1 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open1 });
+        if (tomorrowMarina.close1 && tomorrowMarina.close1 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close1 });
+        if (tomorrowMarina.open2 && tomorrowMarina.open2 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open2 });
+        if (tomorrowMarina.close2 && tomorrowMarina.close2 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close2 });
+        
+        const firstClose = tomorrowEvents.find(e => e.type === 'Closed');
+        nextEvent = firstClose || { time: '--', type: '--' };
+      } else {
+        nextEvent = { time: '--', type: '--' };
+      }
+      
+    } else if (currentState === 'Closed') {
+      // Currently CLOSED: Last=Closed, Next=Opens  
+      lastEvent = lastEventData;
+      
+      // Find next opening - first try today
+      const nextOpen = events.find(e => {
+        const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+        return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
+      });
+      
+      if (nextOpen) {
+        nextEvent = nextOpen;
+      } else if (tomorrowTides && tomorrowTides.marinaTimes) {
+        // Use tomorrow's marina data
+        const tomorrowMarina = tomorrowTides.marinaTimes[settings.marina] || {};
+        const tomorrowEvents = [];
+        if (tomorrowMarina.open1 && tomorrowMarina.open1 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open1 });
+        if (tomorrowMarina.close1 && tomorrowMarina.close1 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close1 });
+        if (tomorrowMarina.open2 && tomorrowMarina.open2 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open2 });
+        if (tomorrowMarina.close2 && tomorrowMarina.close2 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close2 });
+        
+        const firstOpen = tomorrowEvents.find(e => e.type === 'Opened');
+        nextEvent = firstOpen || { time: '--', type: '--' };
+      } else {
+        nextEvent = { time: '--', type: '--' };
+      }
+    } else {
+      // Unknown state - data problem
+      lastEvent = { time: '--', type: '--' };
+      nextEvent = { time: '--', type: '--' };
+    }
+    
+    return { lastEvent, nextEvent };
+  };
+  const checkNeedsTomorrowData = async (todayTides, currentTimeMinutes) => {
+    // Check if any future tide events exist today
+    const futureTides = todayTides.allTides.filter(tide => {
+      const tideMinutes = parseInt(tide.time.split(':')[0]) * 60 + parseInt(tide.time.split(':')[1]);
+      return tideMinutes > currentTimeMinutes;
+    });
+    
+    // Check if any future marina events exist today
+    const marina = todayTides.marinaTimes[settings.marina] || {};
+    const futureMarinas = [
+      { type: 'Opened', time: marina.open1 },
+      { type: 'Closed', time: marina.close1 },
+      { type: 'Opened', time: marina.open2 },
+      { type: 'Closed', time: marina.close2 }
+    ].filter(e => {
+      if (!e.time || e.time === '--') return false;
+      const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+      return eventMinutes > currentTimeMinutes;
+    });
+    
+    return futureTides.length === 0 || futureMarinas.length === 0;
+  };
+
+  // Calculate tide events using today + tomorrow data
+  const calculateTideEvents = (todayTides, tomorrowTides, currentTimeMinutes) => {
+    let lastTide = { time: '--', height: '--', type: '--' };
+    let nextTide = { time: '--', height: '--', type: '--' };
+    
+    const todayEvents = todayTides.allTides || [];
+    
+    // Find most recent past tide
+    for (let i = 0; i < todayEvents.length; i++) {
+      const event = todayEvents[i];
+      const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+      
+      if (eventMinutes <= currentTimeMinutes) {
+        lastTide = event;
+      }
+    }
+    
+    // Find next future tide - first try today
+    for (let i = 0; i < todayEvents.length; i++) {
+      const event = todayEvents[i];
+      const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+      
+      if (eventMinutes > currentTimeMinutes) {
+        nextTide = event;
+        break;
+      }
+    }
+    
+    // If no future tide today, use tomorrow's first
+    if (nextTide.time === '--' && tomorrowTides && tomorrowTides.allTides && tomorrowTides.allTides.length > 0) {
+      nextTide = tomorrowTides.allTides[0];
+    }
+    
+    return { lastTide, nextTide };
+  };
   const getYearDay = (date) => {
     const start = new Date(date.getFullYear(), 0, 0);
     const diff = date - start;
@@ -432,19 +625,53 @@ const GuernseyRibApp = () => {
         console.log('First 500 chars:', content?.substring(0, 500));
         
         if (content) {
+          const now = new Date();
+          const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+          const currentTimeMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
+          
           const parsedTides = parseTideData(content);
           console.log('Parsed tide result:', parsedTides);
           if (parsedTides) {
+            // Check if we need tomorrow's data for next events
+            const needsTomorrowData = await checkNeedsTomorrowData(parsedTides, currentTimeMinutes);
+            
+            let tomorrowTides = null;
+            if (needsTomorrowData) {
+              console.log('Need tomorrow data, fetching...');
+              const tomorrowYearDay = yearDay + 1;
+              const tomorrowUrl = `https://tides.digimap.gg/?year=${now.getFullYear()}&yearDay=${tomorrowYearDay}&reqDepth=${reqDepth}`;
+              
+              try {
+                const tomorrowResponse = await fetch(workingProxy + encodeURIComponent(tomorrowUrl));
+                let tomorrowContent;
+                if (workingProxy.includes('allorigins.win')) {
+                  const tomorrowData = await tomorrowResponse.json();
+                  tomorrowContent = tomorrowData.contents;
+                } else {
+                  tomorrowContent = await tomorrowResponse.text();
+                }
+                
+                if (tomorrowContent) {
+                  tomorrowTides = parseTideData(tomorrowContent);
+                  console.log('Tomorrow tide data fetched:', tomorrowTides);
+                }
+              } catch (error) {
+                console.log('Tomorrow tide fetch failed:', error.message);
+              }
+            }
+            
             setMarinaTimes(parsedTides.marinaTimes);
             const selectedMarina = parsedTides.marinaTimes[settings.marina] || {};
-            const marinaEvents = parsedTides.calculateMarinaEvents(selectedMarina);
+            const marinaEvents = parsedTides.calculateMarinaEvents(selectedMarina, tomorrowTides, currentTimeMinutes);
+            const tideEvents = calculateTideEvents(parsedTides, tomorrowTides, currentTimeMinutes);
+            
             setCurrentConditions(prev => ({
               ...prev,
               tides: {
                 ...prev.tides,
                 currentHeight: parsedTides.currentHeight,
-                lastTide: parsedTides.lastTide,
-                nextTide: parsedTides.nextTide,
+                lastTide: tideEvents.lastTide,
+                nextTide: tideEvents.nextTide,
                 lastMarinaEvent: marinaEvents.lastEvent,
                 nextMarinaEvent: marinaEvents.nextEvent,
                 sillClearance: typeof parsedTides.currentHeight === 'number' ? parsedTides.currentHeight > (settings.boatDraft + 0.5) : false,
