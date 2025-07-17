@@ -565,7 +565,6 @@ const GuernseyRibApp = () => {
       React.createElement('span', { className: "text-lg mr-2" }, '⚙️'),
       'Settings'
     ),
-    );
     React.createElement('div', { className: "space-y-3 sm:space-y-4" },
       React.createElement('div', null,
         React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Marina'),
@@ -622,8 +621,8 @@ const GuernseyRibApp = () => {
           React.createElement('option', { value: "aggressive" }, 'Aggressive')
         )
       )
+    )
   );
-  };
 
   const CurrentConditions = () => {
     // Update current time every minute
@@ -659,28 +658,6 @@ const GuernseyRibApp = () => {
           )
         )
       ),
-    // Overall Status
-    React.createElement('div', { className: `rounded-lg p-4 sm:p-6 ${conditions.color} border-l-4 border-current` },
-      React.createElement('div', { className: "flex flex-col sm:flex-row items-center justify-between" },
-        React.createElement('div', { className: "flex items-center mb-2 sm:mb-0" },
-          React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, conditions.icon),
-          React.createElement('h2', { className: "text-xl sm:text-2xl font-bold ml-2" }, conditions.rating)
-        ),
-        React.createElement('div', { className: "text-center sm:text-right" },
-          React.createElement('div', { className: "text-xs sm:text-sm opacity-75" }, 'Conditions Score'),
-          React.createElement('div', { className: "text-lg sm:text-xl font-bold" }, `${conditions.score}/100`)
-        )
-      ),
-      conditions.factors.length > 0 && React.createElement('div', { className: "mt-2 text-xs sm:text-sm text-center sm:text-left" },
-        React.createElement('strong', null, 'Factors:'), ` ${conditions.factors.join(', ')}`
-      ),
-      conditions.isMarinaClosed && React.createElement('div', { className: "mt-3 text-center" },
-        React.createElement('span', { className: "bg-red-600 text-white px-3 py-1 rounded-full text-sm font-bold" }, 
-          '--- MARINA CLOSED ---'
-        )
-      )
-    ),
-  );
 
     // Three Main Factors
     React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch" },
@@ -833,12 +810,9 @@ const GuernseyRibApp = () => {
           },           `Weather data: BBC Weather ${currentConditions.weather.time}`)
         )
       )
-    )
   );
   };
-    )
-  );
-
+  
   const ForecastView = () => React.createElement('div', { className: "bg-white rounded-lg shadow p-4 sm:p-6" },
     React.createElement('h2', { className: "text-lg sm:text-xl font-bold mb-3 sm:mb-4" }, '3-Day Forecast'),
     React.createElement('div', { className: "text-center text-gray-500 text-sm sm:text-base" }, 'Forecast feature coming soon...')
