@@ -622,6 +622,7 @@ const GuernseyRibApp = () => {
         )
       )
     )
+        )
       )
     )
   );
@@ -811,9 +812,12 @@ const GuernseyRibApp = () => {
             target: '_blank',
             rel: 'noopener noreferrer',
             className: 'hover:underline'
-          }, `Weather data: BBC Weather ${currentConditions.weather.time}`)
+          },           `Weather data: BBC Weather ${currentConditions.weather.time}`)
         )
       )
+    )
+  );
+  };
     )
   );
 
