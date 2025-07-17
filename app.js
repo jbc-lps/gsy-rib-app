@@ -810,6 +810,8 @@ const GuernseyRibApp = () => {
           },           `Weather data: BBC Weather ${currentConditions.weather.time}`)
         )
       )
+    )
+   )
   );
   };
   
