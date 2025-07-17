@@ -193,29 +193,72 @@ const GuernseyRibApp = () => {
       // Get all tides in chronological order
       const allEvents = [...tideExtremes];
       
-      // Find last and next based on current time
+      // Determine current tide trend: are we between High→Low or Low→High?
+      let currentTrend = 'unknown';
+      let mostRecentTide = null;
+      
+      // Find the most recent tide event
       for (let i = 0; i < allEvents.length; i++) {
         const event = allEvents[i];
         const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
         
         if (eventMinutes <= currentTimeMinutes) {
+          mostRecentTide = event;
           lastTide = event;
-        } else if (nextTide.time === '--') {
-          nextTide = event;
         }
       }
       
-      // If no last tide found (we're before the first tide of the day), it must have been yesterday
-      if (lastTide.time === '--' && allEvents.length > 0) {
-        // Use the last tide from the list as yesterday's last tide
-        lastTide = { ...allEvents[allEvents.length - 1], time: allEvents[allEvents.length - 1].time + ' (yesterday)' };
+      // If no recent tide today, use yesterday's final tide
+      if (!mostRecentTide && allEvents.length > 0) {
+        mostRecentTide = allEvents[allEvents.length - 1];
+        lastTide = { ...mostRecentTide, time: mostRecentTide.time + ' (yesterday)' };
       }
       
-      // If no next tide found (we're after the last tide of the day), check tomorrow
-      if (nextTide.time === '--' && allEvents.length > 0) {
-        // Use the first tide as tomorrow's first tide
-        nextTide = { ...allEvents[0], time: allEvents[0].time + ' (tomorrow)' };
+      // Determine trend and find next tide
+      if (mostRecentTide) {
+        if (mostRecentTide.type === 'high') {
+          // After high tide, heading to low tide
+          currentTrend = 'falling';
+          const nextLow = allEvents.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'low' && eventMinutes > currentTimeMinutes;
+          });
+          
+          if (nextLow) {
+            nextTide = nextLow;
+          } else {
+            // No more low tides today, use tomorrow's first low
+            const firstLow = allEvents.find(e => e.type === 'low');
+            if (firstLow) {
+              nextTide = { ...firstLow, time: firstLow.time + ' (tomorrow)' };
+            }
+          }
+        } else if (mostRecentTide.type === 'low') {
+          // After low tide, heading to high tide
+          currentTrend = 'rising';
+          const nextHigh = allEvents.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'high' && eventMinutes > currentTimeMinutes;
+          });
+          
+          if (nextHigh) {
+            nextTide = nextHigh;
+          } else {
+            // No more high tides today, use tomorrow's first high
+            const firstHigh = allEvents.find(e => e.type === 'high');
+            if (firstHigh) {
+              nextTide = { ...firstHigh, time: firstHigh.time + ' (tomorrow)' };
+            }
+          }
+        }
       }
+      
+      console.log('Tide trend:', {
+        currentTime: `${Math.floor(currentTimeMinutes/60)}:${String(currentTimeMinutes%60).padStart(2,'0')}`,
+        currentTrend,
+        lastTide,
+        nextTide
+      });
       
       // Calculate marina events based on current time
       const calculateMarinaEvents = (marina) => {
@@ -235,43 +278,33 @@ const GuernseyRibApp = () => {
           return timeA - timeB;
         });
         
+        // Determine current marina state: OPEN or CLOSED?
+        let isCurrentlyOpen = false;
         let lastEvent = { time: '--', type: '--' };
         let nextEvent = { time: '--', type: '--' };
         
-        // Find the most recent past event
+        // Find the most recent event to determine current state
         for (let i = 0; i < events.length; i++) {
           const event = events[i];
           const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
           
           if (eventMinutes <= currentTimeMinutes) {
             lastEvent = event;
+            isCurrentlyOpen = (event.type === 'Opened');
           }
         }
         
-        // If no past event today, last event was yesterday's final event
+        // If no events happened today, check yesterday's final state
         if (lastEvent.time === '--' && events.length > 0) {
-          lastEvent = { ...events[events.length - 1], time: events[events.length - 1].time + ' (yesterday)' };
+          // Assume yesterday ended with the same pattern - use last event of day
+          const finalEvent = events[events.length - 1];
+          lastEvent = { ...finalEvent, time: finalEvent.time + ' (yesterday)' };
+          isCurrentlyOpen = (finalEvent.type === 'Opened');
         }
         
-        // Logic for next event: if last was "Closed", next must be "Opened" and vice versa
-        if (lastEvent.type === 'Closed') {
-          // Marina is closed, find next opening
-          const nextOpen = events.find(e => {
-            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-            return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
-          });
-          
-          if (nextOpen) {
-            nextEvent = nextOpen;
-          } else {
-            // No more openings today, use tomorrow's first opening
-            const firstOpen = events.find(e => e.type === 'Opened');
-            if (firstOpen) {
-              nextEvent = { ...firstOpen, time: firstOpen.time + ' (tomorrow)' };
-            }
-          }
-        } else if (lastEvent.type === 'Opened') {
-          // Marina is open, find next closing
+        // Find next event based on current state
+        if (isCurrentlyOpen) {
+          // Marina is currently OPEN, find next CLOSING
           const nextClose = events.find(e => {
             const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
             return e.type === 'Closed' && eventMinutes > currentTimeMinutes;
@@ -286,15 +319,29 @@ const GuernseyRibApp = () => {
               nextEvent = { ...firstClose, time: firstClose.time + ' (tomorrow)' };
             }
           }
+        } else {
+          // Marina is currently CLOSED, find next OPENING
+          const nextOpen = events.find(e => {
+            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+            return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
+          });
+          
+          if (nextOpen) {
+            nextEvent = nextOpen;
+          } else {
+            // No more openings today, use tomorrow's first opening
+            const firstOpen = events.find(e => e.type === 'Opened');
+            if (firstOpen) {
+              nextEvent = { ...firstOpen, time: firstOpen.time + ' (tomorrow)' };
+            }
+          }
         }
         
-        // Debug logging
-        console.log('Marina events calculation:', {
+        console.log('Marina state:', {
           currentTime: `${Math.floor(currentTimeMinutes/60)}:${String(currentTimeMinutes%60).padStart(2,'0')}`,
-          allEvents: events,
+          isCurrentlyOpen,
           lastEvent,
-          nextEvent,
-          logic: lastEvent.type === 'Closed' ? 'Last was CLOSED, looking for next OPENED' : 'Last was OPENED, looking for next CLOSED'
+          nextEvent
         });
         
         return { lastEvent, nextEvent };
@@ -597,7 +644,8 @@ const GuernseyRibApp = () => {
 
     // Check if marina is currently closed
     const nextMarinaEvent = currentConditions.tides.nextMarinaEvent || { type: '--' };
-    const isMarinaClosed = nextMarinaEvent.type === 'Opened' || nextMarinaEvent.time?.includes('(tomorrow)');
+    const lastMarinaEvent = currentConditions.tides.lastMarinaEvent || { type: '--' };
+    const isMarinaClosed = lastMarinaEvent.type === 'Closed';
 
     return { score, rating, color, icon, factors, isMarinaClosed };
   };
