@@ -630,14 +630,14 @@ const GuernseyRibApp = () => {
     return futureTides.length === 0 || futureMarinas.length === 0;
   };
 
-  // Calculate tide events using today + tomorrow data
-  const calculateTideEvents = (todayTides, tomorrowTides, currentTimeMinutes) => {
+  // Calculate tide events using today + yesterday + tomorrow data
+  const calculateTideEvents = (todayTides, yesterdayTides, tomorrowTides, currentTimeMinutes) => {
     let lastTide = { time: '--', height: '--', type: '--' };
     let nextTide = { time: '--', height: '--', type: '--' };
     
     const todayEvents = todayTides.allTides || [];
     
-    // Find most recent past tide
+    // Find most recent past tide - first try today
     for (let i = 0; i < todayEvents.length; i++) {
       const event = todayEvents[i];
       const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
@@ -645,6 +645,12 @@ const GuernseyRibApp = () => {
       if (eventMinutes <= currentTimeMinutes) {
         lastTide = event;
       }
+    }
+    
+    // If no past tide today, use yesterday's last
+    if (lastTide.time === '--' && yesterdayTides && yesterdayTides.allTides && yesterdayTides.allTides.length > 0) {
+      lastTide = yesterdayTides.allTides[yesterdayTides.allTides.length - 1];
+      console.log('Using yesterday last tide:', lastTide);
     }
     
     // Find next future tide - first try today
@@ -661,7 +667,10 @@ const GuernseyRibApp = () => {
     // If no future tide today, use tomorrow's first
     if (nextTide.time === '--' && tomorrowTides && tomorrowTides.allTides && tomorrowTides.allTides.length > 0) {
       nextTide = tomorrowTides.allTides[0];
+      console.log('Using tomorrow first tide:', nextTide);
     }
+    
+    console.log('Tide events final result:', { lastTide, nextTide });
     
     return { lastTide, nextTide };
   };
@@ -731,11 +740,37 @@ const GuernseyRibApp = () => {
           const parsedTides = parseTideData(content);
           console.log('Parsed tide result:', parsedTides);
           if (parsedTides) {
-            // Check if we need tomorrow's data for next events
-            const needsTomorrowData = await checkNeedsTomorrowData(parsedTides, currentTimeMinutes);
+            // Check if we need yesterday's or tomorrow's data
+            const extraDataNeeds = await checkNeedsExtraData(parsedTides, currentTimeMinutes);
             
+            let yesterdayTides = null;
             let tomorrowTides = null;
-            if (needsTomorrowData) {
+            
+            if (extraDataNeeds.needsYesterday) {
+              console.log('Need yesterday data, fetching...');
+              const yesterdayYearDay = yearDay - 1;
+              const yesterdayUrl = `https://tides.digimap.gg/?year=${now.getFullYear()}&yearDay=${yesterdayYearDay}&reqDepth=${reqDepth}`;
+              
+              try {
+                const yesterdayResponse = await fetch(workingProxy + encodeURIComponent(yesterdayUrl));
+                let yesterdayContent;
+                if (workingProxy.includes('allorigins.win')) {
+                  const yesterdayData = await yesterdayResponse.json();
+                  yesterdayContent = yesterdayData.contents;
+                } else {
+                  yesterdayContent = await yesterdayResponse.text();
+                }
+                
+                if (yesterdayContent) {
+                  yesterdayTides = parseTideData(yesterdayContent);
+                  console.log('Yesterday tide data fetched:', yesterdayTides);
+                }
+              } catch (error) {
+                console.log('Yesterday tide fetch failed:', error.message);
+              }
+            }
+            
+            if (extraDataNeeds.needsTomorrow) {
               console.log('Need tomorrow data, fetching...');
               const tomorrowYearDay = yearDay + 1;
               const tomorrowUrl = `https://tides.digimap.gg/?year=${now.getFullYear()}&yearDay=${tomorrowYearDay}&reqDepth=${reqDepth}`;
@@ -761,8 +796,8 @@ const GuernseyRibApp = () => {
             
             setMarinaTimes(parsedTides.marinaTimes);
             const selectedMarina = parsedTides.marinaTimes[settings.marina] || {};
-            const marinaEvents = calculateMarinaEvents(selectedMarina, tomorrowTides, currentTimeMinutes);
-            const tideEvents = calculateTideEvents(parsedTides, tomorrowTides, currentTimeMinutes);
+            const marinaEvents = calculateMarinaEvents(selectedMarina, yesterdayTides, tomorrowTides, currentTimeMinutes);
+            const tideEvents = calculateTideEvents(parsedTides, yesterdayTides, tomorrowTides, currentTimeMinutes);
             
             setCurrentConditions(prev => ({
               ...prev,
