@@ -1,7 +1,7 @@
 const { useState, useEffect } = React;
 
 const GuernseyRibApp = () => {
-  const [currentView, setCurrentView] = useState('current');
+  const [showSettings, setShowSettings] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
   const [settings, setSettings] = useState({
@@ -560,70 +560,6 @@ const GuernseyRibApp = () => {
 
   const conditions = calculateConditions();
 
-  const SettingsPanel = () => React.createElement('div', { className: "bg-white rounded-lg shadow-lg p-4 sm:p-6" },
-    React.createElement('h2', { className: "text-lg sm:text-xl font-bold mb-3 sm:mb-4 flex items-center" },
-      React.createElement('span', { className: "text-lg mr-2" }, '⚙️'),
-      'Settings'
-    ),
-    React.createElement('div', { className: "space-y-3 sm:space-y-4" },
-      React.createElement('div', null,
-        React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Marina'),
-        React.createElement('select', {
-          value: settings.marina,
-          onChange: (e) => setSettings({...settings, marina: e.target.value}),
-          className: "w-full p-2 border rounded text-sm sm:text-base"
-        },
-          React.createElement('option', { value: "Albert" }, 'Albert Marina'),
-          React.createElement('option', { value: "Victoria" }, 'Victoria Marina'),
-          React.createElement('option', { value: "QEII" }, 'QEII Marina'),
-          React.createElement('option', { value: "St Sampsons" }, 'St Sampsons'),
-          React.createElement('option', { value: "Beaucette" }, 'Beaucette Marina')
-        )
-      ),
-      React.createElement('div', null,
-        React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Boat Draft (m)'),
-        React.createElement('input', {
-          type: "number",
-          step: "0.1",
-          value: settings.boatDraft,
-          onChange: (e) => setSettings({...settings, boatDraft: parseFloat(e.target.value)}),
-          className: "w-full p-2 border rounded text-sm sm:text-base"
-        })
-      ),
-      React.createElement('div', null,
-        React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Max Wind Speed (knots)'),
-        React.createElement('input', {
-          type: "number",
-          value: settings.windLimit,
-          onChange: (e) => setSettings({...settings, windLimit: parseInt(e.target.value)}),
-          className: "w-full p-2 border rounded text-sm sm:text-base"
-        })
-      ),
-      React.createElement('div', null,
-        React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Max Wave Height (m)'),
-        React.createElement('input', {
-          type: "number",
-          step: "0.1",
-          value: settings.waveLimit,
-          onChange: (e) => setSettings({...settings, waveLimit: parseFloat(e.target.value)}),
-          className: "w-full p-2 border rounded text-sm sm:text-base"
-        })
-      ),
-      React.createElement('div', null,
-        React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Risk Tolerance'),
-        React.createElement('select', {
-          value: settings.riskTolerance,
-          onChange: (e) => setSettings({...settings, riskTolerance: e.target.value}),
-          className: "w-full p-2 border rounded text-sm sm:text-base"
-        },
-          React.createElement('option', { value: "conservative" }, 'Conservative'),
-          React.createElement('option', { value: "moderate" }, 'Moderate'),
-          React.createElement('option', { value: "aggressive" }, 'Aggressive')
-        )
-      )
-    )
-  );
-
   const CurrentConditions = () => {
     // Update current time every minute
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -813,11 +749,6 @@ const GuernseyRibApp = () => {
     )
    );
   };
-  
-  const ForecastView = () => React.createElement('div', { className: "bg-white rounded-lg shadow p-4 sm:p-6" },
-    React.createElement('h2', { className: "text-lg sm:text-xl font-bold mb-3 sm:mb-4" }, '3-Day Forecast'),
-    React.createElement('div', { className: "text-center text-gray-500 text-sm sm:text-base" }, 'Forecast feature coming soon...')
-  );
 
   return React.createElement('div', { className: "min-h-screen bg-blue-50" },
     React.createElement('div', { className: "bg-blue-800 text-white p-3 sm:p-4" },
@@ -852,41 +783,73 @@ const GuernseyRibApp = () => {
       )
     ),
 
-    React.createElement('div', { className: "bg-white shadow-sm" },
-      React.createElement('div', { className: "max-w-6xl mx-auto px-3 sm:px-4" },
-        React.createElement('div', { className: "flex space-x-4 sm:space-x-8 overflow-x-auto" },
-          React.createElement('button', {
-            onClick: () => setCurrentView('current'),
-            className: `py-2 sm:py-3 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-              currentView === 'current' 
-                ? 'border-blue-600 text-blue-700' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`
-          }, 'Current Conditions'),
-          React.createElement('button', {
-            onClick: () => setCurrentView('forecast'),
-            className: `py-2 sm:py-3 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-              currentView === 'forecast' 
-                ? 'border-blue-600 text-blue-700' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`
-          }, '3-Day Forecast'),
-          React.createElement('button', {
-            onClick: () => setCurrentView('settings'),
-            className: `py-2 sm:py-3 px-1 border-b-2 font-medium text-xs sm:text-sm whitespace-nowrap ${
-              currentView === 'settings' 
-                ? 'border-blue-600 text-blue-700' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`
-          }, 'Settings')
-        )
-      )
-    ),
-
     React.createElement('div', { className: "max-w-6xl mx-auto p-3 sm:p-4" },
-      currentView === 'current' && CurrentConditions(),
-      currentView === 'forecast' && ForecastView(),
-      currentView === 'settings' && SettingsPanel()
+      React.createElement('div', { className: "space-y-4" },
+        showSettings && React.createElement('div', { className: "bg-white rounded-lg shadow-lg p-4 sm:p-6" },
+          React.createElement('h2', { className: "text-lg sm:text-xl font-bold mb-3 sm:mb-4 flex items-center" },
+            React.createElement('span', { className: "text-lg mr-2" }, '⚙️'),
+            'Settings'
+          ),
+          React.createElement('div', { className: "space-y-3 sm:space-y-4" },
+            React.createElement('div', null,
+              React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Marina'),
+              React.createElement('select', {
+                value: settings.marina,
+                onChange: (e) => setSettings({...settings, marina: e.target.value}),
+                className: "w-full p-2 border rounded text-sm sm:text-base"
+              },
+                React.createElement('option', { value: "Albert" }, 'Albert Marina'),
+                React.createElement('option', { value: "Victoria" }, 'Victoria Marina'),
+                React.createElement('option', { value: "QEII" }, 'QEII Marina'),
+                React.createElement('option', { value: "St Sampsons" }, 'St Sampsons'),
+                React.createElement('option', { value: "Beaucette" }, 'Beaucette Marina')
+              )
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Boat Draft (m)'),
+              React.createElement('input', {
+                type: "number",
+                step: "0.1",
+                value: settings.boatDraft,
+                onChange: (e) => setSettings({...settings, boatDraft: parseFloat(e.target.value)}),
+                className: "w-full p-2 border rounded text-sm sm:text-base"
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Max Wind Speed (knots)'),
+              React.createElement('input', {
+                type: "number",
+                value: settings.windLimit,
+                onChange: (e) => setSettings({...settings, windLimit: parseInt(e.target.value)}),
+                className: "w-full p-2 border rounded text-sm sm:text-base"
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Max Wave Height (m)'),
+              React.createElement('input', {
+                type: "number",
+                step: "0.1",
+                value: settings.waveLimit,
+                onChange: (e) => setSettings({...settings, waveLimit: parseFloat(e.target.value)}),
+                className: "w-full p-2 border rounded text-sm sm:text-base"
+              })
+            ),
+            React.createElement('div', null,
+              React.createElement('label', { className: "block text-xs sm:text-sm font-medium mb-1" }, 'Risk Tolerance'),
+              React.createElement('select', {
+                value: settings.riskTolerance,
+                onChange: (e) => setSettings({...settings, riskTolerance: e.target.value}),
+                className: "w-full p-2 border rounded text-sm sm:text-base"
+              },
+                React.createElement('option', { value: "conservative" }, 'Conservative'),
+                React.createElement('option', { value: "moderate" }, 'Moderate'),
+                React.createElement('option', { value: "aggressive" }, 'Aggressive')
+              )
+            )
+          )
+        ),
+        CurrentConditions()
+      )
     ),
 
     React.createElement('div', { className: "bg-blue-200 mt-8 p-3 sm:p-4 text-xs text-blue-800" },
