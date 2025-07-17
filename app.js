@@ -79,13 +79,14 @@ const GuernseyRibApp = () => {
         // Start from row 1 to skip header
         for (let i = 1; i < rows.length; i++) {
           const cells = rows[i].querySelectorAll('td');
-          if (cells.length >= 5) {
+          if (cells.length >= 6) { // Now checking for 6 columns
             const marina = cells[0].textContent.trim();
             marinaTimes[marina] = {
-              open1: cells[1].textContent.trim() || '--',
-              close1: cells[2].textContent.trim() || '--', 
-              open2: cells[3].textContent.trim() || '--',
-              close2: cells[4].textContent.trim() || '--'
+              open1: cells[1].textContent.trim() || '--',   // Usually empty
+              close1: cells[2].textContent.trim() || '--',  // 02:46
+              open2: cells[3].textContent.trim() || '--',   // 08:33
+              close2: cells[4].textContent.trim() || '--',  // 15:12
+              open3: cells[5].textContent.trim() || '--'    // 20:43 - MISSING!
             };
           }
         }
@@ -242,7 +243,36 @@ const GuernseyRibApp = () => {
         }
       }
       
-      // Calculate marina events - determine current state first
+      // Calculate sunrise/sunset for Guernsey (49.45°N, 2.54°W)
+  const calculateSunTimes = (date) => {
+    const lat = 49.45; // Guernsey latitude
+    const lon = -2.54; // Guernsey longitude
+    
+    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
+    const P = Math.asin(.39795 * Math.cos(.98563 * (dayOfYear - 173) * Math.PI / 180));
+    const argument = Math.tan(lat * Math.PI / 180) * Math.tan(P);
+    const argument2 = Math.sqrt(1 - argument * argument);
+    const H = 180 / Math.PI * Math.atan2(argument2, argument);
+    
+    const sunrise = 12 - H / 15 - lon / 15;
+    const sunset = 12 + H / 15 - lon / 15;
+    
+    return { sunrise, sunset };
+  };
+
+  // Check if it's night time (sunset+30min to sunrise-30min)
+  const isNightTime = () => {
+    const now = new Date();
+    const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
+    const currentHours = guernseyTime.getHours() + guernseyTime.getMinutes() / 60;
+    
+    const { sunrise, sunset } = calculateSunTimes(guernseyTime);
+    const nightStart = sunset + 0.5; // 30 minutes after sunset
+    const nightEnd = sunrise - 0.5;  // 30 minutes before sunrise
+    
+    // Handle overnight (sunset to midnight, then midnight to sunrise)
+    return currentHours >= nightStart || currentHours <= nightEnd;
+  };
       const calculateMarinaEvents = (marina) => {
         if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
         
@@ -417,6 +447,7 @@ const GuernseyRibApp = () => {
     if (marina.close1 && marina.close1 !== '--') events.push({ type: 'Closed', time: marina.close1 });
     if (marina.open2 && marina.open2 !== '--') events.push({ type: 'Opened', time: marina.open2 });
     if (marina.close2 && marina.close2 !== '--') events.push({ type: 'Closed', time: marina.close2 });
+    if (marina.open3 && marina.open3 !== '--') events.push({ type: 'Opened', time: marina.open3 }); // Added open3!
     
     // Sort events chronologically
     events.sort((a, b) => {
@@ -467,6 +498,8 @@ const GuernseyRibApp = () => {
         if (tomorrowMarina.close1 && tomorrowMarina.close1 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close1 });
         if (tomorrowMarina.open2 && tomorrowMarina.open2 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open2 });
         if (tomorrowMarina.close2 && tomorrowMarina.close2 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close2 });
+        if (tomorrowMarina.open3 && tomorrowMarina.open3 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open3 }); // Added open3!
+        if (tomorrowMarina.open3 && tomorrowMarina.open3 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open3 }); // Added open3!
         
         const firstClose = tomorrowEvents.find(e => e.type === 'Closed');
         nextEvent = firstClose || { time: '--', type: '--' };
@@ -521,7 +554,8 @@ const GuernseyRibApp = () => {
       { type: 'Opened', time: marina.open1 },
       { type: 'Closed', time: marina.close1 },
       { type: 'Opened', time: marina.open2 },
-      { type: 'Closed', time: marina.close2 }
+      { type: 'Closed', time: marina.close2 },
+      { type: 'Opened', time: marina.open3 } // Added open3!
     ].filter(e => {
       if (!e.time || e.time === '--') return false;
       const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
@@ -662,7 +696,7 @@ const GuernseyRibApp = () => {
             
             setMarinaTimes(parsedTides.marinaTimes);
             const selectedMarina = parsedTides.marinaTimes[settings.marina] || {};
-            const marinaEvents = parsedTides.calculateMarinaEvents(selectedMarina, tomorrowTides, currentTimeMinutes);
+            const marinaEvents = calculateMarinaEvents(selectedMarina, tomorrowTides, currentTimeMinutes);
             const tideEvents = calculateTideEvents(parsedTides, tomorrowTides, currentTimeMinutes);
             
             setCurrentConditions(prev => ({
@@ -729,6 +763,18 @@ const GuernseyRibApp = () => {
 
   // Calculate conditions score
   const calculateConditions = () => {
+    // Check for night mode first
+    if (isNightTime()) {
+      return { 
+        score: null, 
+        rating: 'Night', 
+        color: 'text-gray-800 bg-gray-300', 
+        icon: '🌙', 
+        factors: [], 
+        isMarinaClosed: false 
+      };
+    }
+    
     let score = 100;
     let factors = [];
     
@@ -830,7 +876,7 @@ const GuernseyRibApp = () => {
             React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, conditions.icon),
             React.createElement('h2', { className: "text-xl sm:text-2xl font-bold ml-2" }, conditions.rating)
           ),
-          React.createElement('div', { className: "text-center sm:text-right" },
+          conditions.score !== null && React.createElement('div', { className: "text-center sm:text-right" },
             React.createElement('div', { className: "text-xs sm:text-sm opacity-75" }, 'Conditions Score'),
             React.createElement('div', { className: "text-lg sm:text-xl font-bold" }, `${conditions.score}/100`)
           )
