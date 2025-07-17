@@ -39,7 +39,9 @@ const GuernseyRibApp = () => {
       summary: '--',
       temperature: '--',
       visibility: '--',
-      time: '--'
+      time: '--',
+      sunrise: '--',
+      sunset: '--'
     }
   });
 
@@ -243,35 +245,51 @@ const GuernseyRibApp = () => {
         }
       }
       
-      // Calculate sunrise/sunset for Guernsey (49.45°N, 2.54°W)
-  const calculateSunTimes = (date) => {
-    const lat = 49.45; // Guernsey latitude
-    const lon = -2.54; // Guernsey longitude
-    
-    const dayOfYear = Math.floor((date - new Date(date.getFullYear(), 0, 0)) / 86400000);
-    const P = Math.asin(.39795 * Math.cos(.98563 * (dayOfYear - 173) * Math.PI / 180));
-    const argument = Math.tan(lat * Math.PI / 180) * Math.tan(P);
-    const argument2 = Math.sqrt(1 - argument * argument);
-    const H = 180 / Math.PI * Math.atan2(argument2, argument);
-    
-    const sunrise = 12 - H / 15 - lon / 15;
-    const sunset = 12 + H / 15 - lon / 15;
-    
-    return { sunrise, sunset };
+      // Parse BBC weather page for sunrise/sunset times
+  const parseBBCSunTimes = (htmlContent) => {
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
+      
+      // Find sunrise time
+      const sunriseSpan = doc.querySelector('.wr-c-astro-data__sunrise .wr-c-astro-data__time');
+      const sunsetSpan = doc.querySelector('.wr-c-astro-data__sunset .wr-c-astro-data__time');
+      
+      const sunrise = sunriseSpan ? sunriseSpan.textContent.trim() : null;
+      const sunset = sunsetSpan ? sunsetSpan.textContent.trim() : null;
+      
+      console.log('BBC Sunrise/Sunset:', { sunrise, sunset });
+      
+      return { sunrise, sunset };
+      
+    } catch (error) {
+      console.error('Error parsing BBC sunrise/sunset:', error);
+      return null;
+    }
   };
 
-  // Check if it's night time (sunset+30min to sunrise-30min)
+  // Check if it's night time using BBC weather data
   const isNightTime = () => {
+    if (!currentConditions.weather.sunrise || !currentConditions.weather.sunset) {
+      return false; // Default to day if no sun data
+    }
+    
     const now = new Date();
     const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
-    const currentHours = guernseyTime.getHours() + guernseyTime.getMinutes() / 60;
+    const currentMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
     
-    const { sunrise, sunset } = calculateSunTimes(guernseyTime);
-    const nightStart = sunset + 0.5; // 30 minutes after sunset
-    const nightEnd = sunrise - 0.5;  // 30 minutes before sunrise
+    // Parse sunrise/sunset times
+    const sunriseTime = currentConditions.weather.sunrise.split(':');
+    const sunsetTime = currentConditions.weather.sunset.split(':');
+    
+    const sunriseMinutes = parseInt(sunriseTime[0]) * 60 + parseInt(sunriseTime[1]);
+    const sunsetMinutes = parseInt(sunsetTime[0]) * 60 + parseInt(sunsetTime[1]);
+    
+    const nightStart = sunsetMinutes + 30; // 30 minutes after sunset
+    const nightEnd = sunriseMinutes - 30;  // 30 minutes before sunrise
     
     // Handle overnight (sunset to midnight, then midnight to sunrise)
-    return currentHours >= nightStart || currentHours <= nightEnd;
+    return currentMinutes >= nightStart || currentMinutes <= nightEnd;
   };
       const calculateMarinaEvents = (marina) => {
         if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
@@ -742,6 +760,30 @@ const GuernseyRibApp = () => {
         if (content) {
           const parsedWeather = parseBBCWeatherRSS(content);
           if (parsedWeather) {
+            // Also fetch sunrise/sunset from BBC weather page
+            try {
+              const bbcWeatherUrl = 'https://www.bbc.com/weather/3042287'; // Guernsey
+              const bbcPageResponse = await fetch(workingProxy + encodeURIComponent(bbcWeatherUrl));
+              
+              let pageContent;
+              if (workingProxy.includes('allorigins.win')) {
+                const pageData = await bbcPageResponse.json();
+                pageContent = pageData.contents;
+              } else {
+                pageContent = await bbcPageResponse.text();
+              }
+              
+              if (pageContent) {
+                const sunTimes = parseBBCSunTimes(pageContent);
+                if (sunTimes) {
+                  parsedWeather.sunrise = sunTimes.sunrise || '--';
+                  parsedWeather.sunset = sunTimes.sunset || '--';
+                }
+              }
+            } catch (error) {
+              console.log('BBC weather page fetch failed:', error.message);
+            }
+            
             setCurrentConditions(prev => ({
               ...prev,
               weather: parsedWeather
