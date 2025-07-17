@@ -48,6 +48,7 @@ const GuernseyRibApp = () => {
   // Auto-update on component mount and when settings change
   useEffect(() => {
     updateLiveData();
+    loadWindguruWidget();
   }, [settings.marina, settings.boatDraft]);
 
   // Parse tide data and marina times
@@ -621,9 +622,24 @@ const GuernseyRibApp = () => {
         )
       )
     )
+      )
+    )
   );
+  };
 
-  const CurrentConditions = () => React.createElement('div', { className: "space-y-4" },
+  const CurrentConditions = () => {
+    // Update current time every minute
+    const [currentTime, setCurrentTime] = useState(new Date());
+    
+    useEffect(() => {
+      const timer = setInterval(() => {
+        setCurrentTime(new Date());
+      }, 60000); // Update every minute
+      
+      return () => clearInterval(timer);
+    }, []);
+    
+    return React.createElement('div', { className: "space-y-4" },
     // Overall Status
     React.createElement('div', { className: `rounded-lg p-4 sm:p-6 ${conditions.color} border-l-4 border-current` },
       React.createElement('div', { className: "flex flex-col sm:flex-row items-center justify-between" },
@@ -645,132 +661,157 @@ const GuernseyRibApp = () => {
         )
       )
     ),
+  );
 
     // Three Main Factors
-    React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6" },
+    React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch" },
       // 1. TIDES
-      React.createElement('div', { className: "bg-blue-100 rounded-lg shadow p-4 sm:p-6" },
-        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-blue-800" },
+      React.createElement('div', { className: "bg-green-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
+        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-green-800" },
           React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌊'),
           'TIDES'
         ),
-        React.createElement('div', { className: "space-y-3" },
-          // Row 1 - Tide Events
+        React.createElement('div', { className: "space-y-3 flex-grow" },
+          // Row 1 - Marina Status
           React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
-            // Last Tide Event
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
-              React.createElement('div', { className: "text-xs text-blue-700" }, 
+            // Last Marina Status
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+              React.createElement('div', { className: "text-xs text-green-700" }, 
+                currentConditions.tides.lastMarinaEvent.type !== '--' ?
+                  `Marina ${currentConditions.tides.lastMarinaEvent.type}` :
+                  'Last Marina Status'
+              ),
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
+                currentConditions.tides.lastMarinaEvent.time
+              ),
+              React.createElement('div', { className: "text-xs text-green-800" }, 
+                `${settings.boatDraft}m clearance`
+              )
+            ),
+            // Current Time
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+              React.createElement('div', { className: "text-xs text-green-700" }, 'Current Time'),
+              React.createElement('div', { className: "text-lg sm:text-xl font-bold text-green-900" }, 
+                currentTime.toLocaleTimeString('en-GB', {timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit'})
+              )
+            ),
+            // Next Marina Status
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+              React.createElement('div', { className: "text-xs text-green-700" }, 
+                currentConditions.tides.nextMarinaEvent.type !== '--' ?
+                  `Marina ${currentConditions.tides.nextMarinaEvent.type === 'Opened' ? 'Opens' : 'Closes'}` :
+                  'Next Marina Status'
+              ),
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
+                currentConditions.tides.nextMarinaEvent.time
+              ),
+              React.createElement('div', { className: "text-xs text-green-800" }, 
+                `${settings.boatDraft}m clearance`
+              )
+            )
+          ),
+          
+          // Row 2 - Tide Status
+          React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
+            // Last Tide
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+              React.createElement('div', { className: "text-xs text-green-700" }, 
                 currentConditions.tides.lastTide.type !== '--' ? 
                   `Last ${currentConditions.tides.lastTide.type.charAt(0).toUpperCase() + currentConditions.tides.lastTide.type.slice(1)}` : 
                   'Last Tide'
               ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
                 currentConditions.tides.lastTide.time
               ),
-              React.createElement('div', { className: "text-xs sm:text-sm text-blue-800" }, 
+              React.createElement('div', { className: "text-xs sm:text-sm text-green-800" }, 
                 currentConditions.tides.lastTide.height
               )
             ),
             // Current Height
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
-              React.createElement('div', { className: "text-xs text-blue-700" }, 'Current Height'),
-              React.createElement('div', { className: "text-lg sm:text-xl font-bold text-blue-900" }, 
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+              React.createElement('div', { className: "text-xs text-green-700" }, 'Current Height'),
+              React.createElement('div', { className: "text-lg sm:text-xl font-bold text-green-900" }, 
                 typeof currentConditions.tides.currentHeight === 'number' ? 
                   `${currentConditions.tides.currentHeight.toFixed(1)}m` : 
                   currentConditions.tides.currentHeight
               )
             ),
-            // Next Tide Event
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
-              React.createElement('div', { className: "text-xs text-blue-700" }, 
+            // Next Tide
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+              React.createElement('div', { className: "text-xs text-green-700" }, 
                 currentConditions.tides.nextTide.type !== '--' ? 
                   `Next ${currentConditions.tides.nextTide.type.charAt(0).toUpperCase() + currentConditions.tides.nextTide.type.slice(1)}` : 
                   'Next Tide'
               ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
+              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
                 currentConditions.tides.nextTide.time
               ),
-              React.createElement('div', { className: "text-xs sm:text-sm text-blue-800" }, 
+              React.createElement('div', { className: "text-xs sm:text-sm text-green-800" }, 
                 currentConditions.tides.nextTide.height
-              )
-            )
-          ),
-          
-          // Row 2 - Marina Events
-          React.createElement('div', { className: "grid grid-cols-2 gap-2 sm:gap-3" },
-            // Last Marina Event
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
-              React.createElement('div', { className: "text-xs text-blue-700" }, 
-                currentConditions.tides.lastMarinaEvent.type !== '--' ?
-                  `Marina ${currentConditions.tides.lastMarinaEvent.type}` :
-                  'Last Marina Event'
-              ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
-                currentConditions.tides.lastMarinaEvent.time
-              ),
-              React.createElement('div', { className: "text-xs text-blue-800" }, 
-                `(at ${settings.boatDraft}m depth)`
-              )
-            ),
-            // Next Marina Event
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-blue-200 rounded" },
-              React.createElement('div', { className: "text-xs text-blue-700" }, 
-                currentConditions.tides.nextMarinaEvent.type !== '--' ?
-                  `Marina ${currentConditions.tides.nextMarinaEvent.type === 'Opened' ? 'Opens' : 'Closes'}` :
-                  'Next Marina Event'
-              ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-blue-900" }, 
-                currentConditions.tides.nextMarinaEvent.time
-              ),
-              React.createElement('div', { className: "text-xs text-blue-800" }, 
-                `(at ${settings.boatDraft}m depth)`
               )
             )
           )
         ),
-        React.createElement('div', { className: "text-xs text-blue-600 italic text-left border-t border-blue-200 pt-2 mt-3 sm:mt-4" },
-          'Tide data: © Digimap Tides. Times adjusted for BST when applicable.'
+        React.createElement('div', { className: "text-xs text-green-600 italic text-left border-t border-green-200 pt-2 mt-3" },
+          React.createElement('a', { 
+            href: `https://tides.digimap.gg/?year=${new Date().getFullYear()}&yearDay=${getYearDay(new Date())}&reqDepth=${Math.round(settings.boatDraft * 100)}`,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            className: 'hover:underline'
+          }, 'Tide data: © Digimap Tides. Times adjusted for BST when applicable.')
         )
       ),
 
       // 2. WIND & WAVES - Direct Widget
-      React.createElement('div', { className: "bg-sky-100 rounded-lg shadow p-4 sm:p-6" },
-        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-sky-800" },
+      React.createElement('div', { className: "bg-gray-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
+        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-gray-800" },
           React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '💨'),
           'WIND & WAVES'
         ),
-        React.createElement('div', { className: "bg-sky-50 p-3 sm:p-4 rounded-lg min-h-[150px] sm:min-h-[200px] border border-sky-200 overflow-x-auto" },
+        React.createElement('div', { className: "bg-gray-50 p-3 sm:p-4 rounded-lg min-h-[150px] sm:min-h-[200px] border border-gray-200 overflow-x-auto flex-grow" },
           React.createElement('div', { id: "windguru-widget-container" },
-            React.createElement('div', { className: "text-center text-sky-600 py-6 sm:py-8 text-xs sm:text-base" }, 'Loading Windguru widget...')
+            React.createElement('div', { className: "text-center text-gray-600 py-6 sm:py-8 text-xs sm:text-base" }, 'Loading Windguru widget...')
           )
         ),
-        React.createElement('div', { className: "text-xs text-sky-600 italic mt-2 pt-2 border-t border-sky-200" },
-          'Wind/Wave data: © Windguru.cz'
+        React.createElement('div', { className: "text-xs text-gray-600 italic mt-3 pt-2 border-t border-gray-200" },
+          React.createElement('a', { 
+            href: 'https://www.windguru.cz/35647',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            className: 'hover:underline'
+          }, 'Wind/Wave data: © Windguru.cz')
         )
       ),
 
       // 3. WEATHER
-      React.createElement('div', { className: "bg-orange-100 rounded-lg shadow p-4 sm:p-6" },
+      React.createElement('div', { className: "bg-orange-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
         React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-orange-800" },
           React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌤️'),
           'WEATHER'
         ),
-        React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4" },
-          React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
-            React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Summary'),
-            React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.summary)
-          ),
-          React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
-            React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Temperature'),
-            React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.temperature)
-          ),
-          React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
-            React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Visibility'),
-            React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.visibility)
+        React.createElement('div', { className: "flex-grow" },
+          React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4" },
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
+              React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Summary'),
+              React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.summary)
+            ),
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
+              React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Temperature'),
+              React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.temperature)
+            ),
+            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
+              React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Visibility'),
+              React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.visibility)
+            )
           )
         ),
-        React.createElement('div', { className: "text-xs text-orange-600 italic text-left border-t border-orange-200 pt-2 mt-3 sm:mt-4" },
-          `Weather data: BBC Weather ${currentConditions.weather.time}`
+        React.createElement('div', { className: "text-xs text-orange-600 italic text-left border-t border-orange-200 pt-2" },
+          React.createElement('a', { 
+            href: 'https://www.bbc.com/weather/6296594',
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            className: 'hover:underline'
+          }, `Weather data: BBC Weather ${currentConditions.weather.time}`)
         )
       )
     )
@@ -781,7 +822,7 @@ const GuernseyRibApp = () => {
     React.createElement('div', { className: "text-center text-gray-500 text-sm sm:text-base" }, 'Forecast feature coming soon...')
   );
 
-  return React.createElement('div', { className: "min-h-screen bg-gray-100" },
+  return React.createElement('div', { className: "min-h-screen bg-blue-50" },
     React.createElement('div', { className: "bg-blue-800 text-white p-3 sm:p-4" },
       React.createElement('div', { className: "max-w-6xl mx-auto" },
         React.createElement('div', { className: "flex flex-col sm:flex-row items-center justify-between" },
@@ -791,14 +832,11 @@ const GuernseyRibApp = () => {
             ),
             React.createElement('p', { className: "text-blue-100 text-xs sm:text-sm" }, 'Bailiwick waters sailing conditions')
           ),
-          React.createElement('div', { className: "text-center sm:text-right w-full sm:w-auto" },
-            React.createElement('div', { className: "text-xs text-blue-100 mb-1" },
-              `Guernsey time: ${new Date().toLocaleTimeString('en-GB', {timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit'})}`
-            ),
+          React.createElement('div', { className: "text-center sm:text-right" },
             React.createElement('button', {
               onClick: updateLiveData,
               disabled: isUpdating,
-              className: "bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 px-3 py-2 sm:px-4 sm:py-2 rounded-lg flex items-center text-xs sm:text-sm font-medium transition-colors mx-auto sm:mx-0"
+              className: "bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 px-3 py-2 sm:px-4 sm:py-2 rounded-lg inline-flex items-center text-xs sm:text-sm font-medium transition-colors mx-auto sm:mx-0 mb-1"
             },
               isUpdating ? 
                 React.createElement(React.Fragment, null,
@@ -809,7 +847,7 @@ const GuernseyRibApp = () => {
                   'Update Now'
                 )
             ),
-            React.createElement('div', { className: "text-xs text-blue-100" },
+            React.createElement('div', { className: "text-xs text-blue-100 text-center sm:text-right" },
               `Last updated: ${lastUpdated.toLocaleTimeString('en-GB', {timeZone: 'Europe/London'})}`
             )
           )
@@ -854,7 +892,7 @@ const GuernseyRibApp = () => {
       currentView === 'settings' && SettingsPanel()
     ),
 
-    React.createElement('div', { className: "bg-gray-200 mt-8 p-3 sm:p-4 text-xs text-gray-700" },
+    React.createElement('div', { className: "bg-blue-200 mt-8 p-3 sm:p-4 text-xs text-blue-800" },
       React.createElement('div', { className: "max-w-6xl mx-auto text-center" },
         React.createElement('strong', null, 'Data Sources:'), 
         React.createElement('span', { className: "block sm:inline" }, ' Tides: digimap.gg | Wind/Waves: Windguru | Weather: BBC RSS'),
