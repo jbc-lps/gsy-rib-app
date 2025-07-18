@@ -13,10 +13,7 @@ const GuernseyRibApp = () => {
     riskTolerance: 'moderate'
   });
 
-  // Marina opening times based on selected marina (will be replaced by parsed data)
   const [marinaTimes, setMarinaTimes] = useState({});
-
-  // Start with default values, auto-update on load
   const [currentConditions, setCurrentConditions] = useState({
     tides: {
       currentHeight: '--',
@@ -47,7 +44,6 @@ const GuernseyRibApp = () => {
 
   const [forecast, setForecast] = useState([]);
 
-  // Auto-update on component mount and when settings change
   useEffect(() => {
     updateLiveData();
     loadWindguruWidget();
@@ -59,7 +55,6 @@ const GuernseyRibApp = () => {
       const parser = new DOMParser();
       const doc = parser.parseFromString(htmlContent, 'text/html');
       
-      // Find sunrise time
       const sunriseSpan = doc.querySelector('.wr-c-astro-data__sunrise .wr-c-astro-data__time');
       const sunsetSpan = doc.querySelector('.wr-c-astro-data__sunset .wr-c-astro-data__time');
       
@@ -67,9 +62,7 @@ const GuernseyRibApp = () => {
       const sunset = sunsetSpan ? sunsetSpan.textContent.trim() : null;
       
       console.log('BBC Sunrise/Sunset:', { sunrise, sunset });
-      
       return { sunrise, sunset };
-      
     } catch (error) {
       console.error('Error parsing BBC sunrise/sunset:', error);
       return null;
@@ -79,24 +72,22 @@ const GuernseyRibApp = () => {
   // Check if it's night time using BBC weather data
   const isNightTime = () => {
     if (!currentConditions.weather.sunrise || !currentConditions.weather.sunset) {
-      return false; // Default to day if no sun data
+      return false;
     }
     
     const now = new Date();
     const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
     const currentMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
     
-    // Parse sunrise/sunset times
     const sunriseTime = currentConditions.weather.sunrise.split(':');
     const sunsetTime = currentConditions.weather.sunset.split(':');
     
     const sunriseMinutes = parseInt(sunriseTime[0]) * 60 + parseInt(sunriseTime[1]);
     const sunsetMinutes = parseInt(sunsetTime[0]) * 60 + parseInt(sunsetTime[1]);
     
-    const nightStart = sunsetMinutes + 30; // 30 minutes after sunset
-    const nightEnd = sunriseMinutes - 30;  // 30 minutes before sunrise
+    const nightStart = sunsetMinutes + 30;
+    const nightEnd = sunriseMinutes - 30;
     
-    // Handle overnight (sunset to midnight, then midnight to sunrise)
     return currentMinutes >= nightStart || currentMinutes <= nightEnd;
   };
 
@@ -110,7 +101,6 @@ const GuernseyRibApp = () => {
       const marinaTimes = {};
       const tables = doc.querySelectorAll('table');
       
-      // Find marina table - it has 6 columns
       let marinaTable = null;
       for (let table of tables) {
         const firstRow = table.querySelector('tr');
@@ -125,23 +115,22 @@ const GuernseyRibApp = () => {
       
       if (marinaTable) {
         const rows = marinaTable.querySelectorAll('tr');
-        // Start from row 1 to skip header
         for (let i = 1; i < rows.length; i++) {
           const cells = rows[i].querySelectorAll('td');
-          if (cells.length >= 6) { // Now checking for 6 columns
+          if (cells.length >= 6) {
             const marina = cells[0].textContent.trim();
             marinaTimes[marina] = {
-              open1: cells[1].textContent.trim() || '--',   // Usually empty
-              close1: cells[2].textContent.trim() || '--',  // 02:46
-              open2: cells[3].textContent.trim() || '--',   // 08:33
-              close2: cells[4].textContent.trim() || '--',  // 15:12
-              open3: cells[5].textContent.trim() || '--'    // 20:43 - MISSING!
+              open1: cells[1].textContent.trim() || '--',
+              close1: cells[2].textContent.trim() || '--',
+              open2: cells[3].textContent.trim() || '--',
+              close2: cells[4].textContent.trim() || '--',
+              open3: cells[5].textContent.trim() || '--'
             };
           }
         }
       }
       
-      // Parse peak tide times - look for table with Low/High in first column
+      // Parse peak tide times
       let tideExtremes = [];
       let peakTable = null;
       
@@ -159,7 +148,6 @@ const GuernseyRibApp = () => {
       
       if (peakTable) {
         const rows = peakTable.querySelectorAll('tr');
-        // Start from row 1 to skip header
         for (let i = 1; i < rows.length; i++) {
           const cells = rows[i].querySelectorAll('td');
           if (cells.length >= 3) {
@@ -177,18 +165,16 @@ const GuernseyRibApp = () => {
         }
       }
       
-      // Parse hourly tide data - smaller tables with 2 columns
+      // Parse hourly tide data
       const allTideData = [];
       for (let table of tables) {
         const rows = table.querySelectorAll('tr');
-        // Check if it's a tide table (has Time/Height headers)
         if (rows.length > 1) {
           const headerRow = rows[0];
           const headers = headerRow.querySelectorAll('th');
           if (headers.length === 2 && 
               headers[0].textContent.includes('Time') && 
               headers[1].textContent.includes('Height')) {
-            // Parse this tide table
             for (let i = 1; i < rows.length; i++) {
               const cells = rows[i].querySelectorAll('td');
               if (cells.length === 2) {
@@ -213,7 +199,6 @@ const GuernseyRibApp = () => {
       
       // Find current tide height from hourly data
       const now = new Date();
-      // Ensure we're using Guernsey local time (BST in summer)
       const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
       const currentTimeMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
       
@@ -236,187 +221,11 @@ const GuernseyRibApp = () => {
         currentHeight = closestReading ? closestReading.height : '--';
       }
       
-      // Find last and next tide events - determine current state first
-      let lastTide = { time: '--', height: '--', type: '--' };
-      let nextTide = { time: '--', height: '--', type: '--' };
-      
-      // Get all tides in chronological order
-      const allEvents = [...tideExtremes];
-      
-      // Find most recent past tide to determine current state
-      let currentTideState = 'unknown';
-      let lastTideData = null;
-      
-      for (let i = 0; i < allEvents.length; i++) {
-        const event = allEvents[i];
-        const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
-        
-        if (eventMinutes <= currentTimeMinutes) {
-          lastTideData = event;
-          currentTideState = event.type; // 'high' or 'low'
-        }
-      }
-      
-      // If no tides today, data problem - don't guess
-      if (!lastTideData) {
-        lastTide = { time: '--', height: '--', type: '--' };
-        nextTide = { time: '--', height: '--', type: '--' };
-      } else {
-        if (currentTideState === 'high') {
-          // Currently FALLING (after high): Last=High, Next=Low
-          lastTide = lastTideData;
-          
-          // Find next low tide
-          const nextLow = allEvents.find(e => {
-            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-            return e.type === 'low' && eventMinutes > currentTimeMinutes;
-          });
-          
-          nextTide = nextLow || { time: '--', height: '--', type: '--' };
-          
-        } else if (currentTideState === 'low') {
-          // Currently RISING (after low): Last=Low, Next=High
-          lastTide = lastTideData;
-          
-          // Find next high tide  
-          const nextHigh = allEvents.find(e => {
-            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-            return e.type === 'high' && eventMinutes > currentTimeMinutes;
-          });
-          
-          nextTide = nextHigh || { time: '--', height: '--', type: '--' };
-        } else {
-          // Unknown tide state - data problem
-          lastTide = { time: '--', height: '--', type: '--' };
-          nextTide = { time: '--', height: '--', type: '--' };
-        }
-      }
-      
-      // Parse BBC weather page for sunrise/sunset times
-  const parseBBCSunTimes = (htmlContent) => {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlContent, 'text/html');
-      
-      // Find sunrise time
-      const sunriseSpan = doc.querySelector('.wr-c-astro-data__sunrise .wr-c-astro-data__time');
-      const sunsetSpan = doc.querySelector('.wr-c-astro-data__sunset .wr-c-astro-data__time');
-      
-      const sunrise = sunriseSpan ? sunriseSpan.textContent.trim() : null;
-      const sunset = sunsetSpan ? sunsetSpan.textContent.trim() : null;
-      
-      console.log('BBC Sunrise/Sunset:', { sunrise, sunset });
-      
-      return { sunrise, sunset };
-      
-    } catch (error) {
-      console.error('Error parsing BBC sunrise/sunset:', error);
-      return null;
-    }
-  };
-
-  // Check if it's night time using BBC weather data
-  const isNightTime = () => {
-    if (!currentConditions.weather.sunrise || !currentConditions.weather.sunset) {
-      return false; // Default to day if no sun data
-    }
-    
-    const now = new Date();
-    const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
-    const currentMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
-    
-    // Parse sunrise/sunset times
-    const sunriseTime = currentConditions.weather.sunrise.split(':');
-    const sunsetTime = currentConditions.weather.sunset.split(':');
-    
-    const sunriseMinutes = parseInt(sunriseTime[0]) * 60 + parseInt(sunriseTime[1]);
-    const sunsetMinutes = parseInt(sunsetTime[0]) * 60 + parseInt(sunsetTime[1]);
-    
-    const nightStart = sunsetMinutes + 30; // 30 minutes after sunset
-    const nightEnd = sunriseMinutes - 30;  // 30 minutes before sunrise
-    
-    // Handle overnight (sunset to midnight, then midnight to sunrise)
-    return currentMinutes >= nightStart || currentMinutes <= nightEnd;
-  };
-      const calculateMarinaEvents = (marina) => {
-        if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
-        
-        // Create all events for today
-        const events = [];
-        if (marina.open1 && marina.open1 !== '--') events.push({ type: 'Opened', time: marina.open1 });
-        if (marina.close1 && marina.close1 !== '--') events.push({ type: 'Closed', time: marina.close1 });
-        if (marina.open2 && marina.open2 !== '--') events.push({ type: 'Opened', time: marina.open2 });
-        if (marina.close2 && marina.close2 !== '--') events.push({ type: 'Closed', time: marina.close2 });
-        
-        // Sort events chronologically
-        events.sort((a, b) => {
-          const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
-          const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
-          return timeA - timeB;
-        });
-        
-        // Find most recent past event to determine current state
-        let currentState = 'unknown';
-        let lastEventData = null;
-        
-        for (let i = 0; i < events.length; i++) {
-          const event = events[i];
-          const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
-          
-          if (eventMinutes <= currentTimeMinutes) {
-            lastEventData = event;
-            currentState = event.type; // 'Opened' or 'Closed'
-          }
-        }
-        
-        // If no events today, data problem - don't guess
-        if (!lastEventData) {
-          return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
-        }
-        
-        let lastEvent = { time: '--', type: '--' };
-        let nextEvent = { time: '--', type: '--' };
-        
-        if (currentState === 'Opened') {
-          // Currently OPEN: Last=Opened, Next=Closes
-          lastEvent = lastEventData;
-          
-          // Find next closing
-          const nextClose = events.find(e => {
-            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-            return e.type === 'Closed' && eventMinutes > currentTimeMinutes;
-          });
-          
-          nextEvent = nextClose || { time: '--', type: '--' };
-          
-        } else if (currentState === 'Closed') {
-          // Currently CLOSED: Last=Closed, Next=Opens  
-          lastEvent = lastEventData;
-          
-          // Find next opening
-          const nextOpen = events.find(e => {
-            const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-            return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
-          });
-          
-          nextEvent = nextOpen || { time: '--', type: '--' };
-        } else {
-          // Unknown state - data problem
-          lastEvent = { time: '--', type: '--' };
-          nextEvent = { time: '--', type: '--' };
-        }
-        
-        return { lastEvent, nextEvent };
-      };
-      
       return {
         currentHeight: currentHeight,
-        lastTide: lastTide,
-        nextTide: nextTide,
         marinaTimes: marinaTimes,
         allTides: tideExtremes,
-        hourlyData: allTideData,
-        calculateMarinaEvents: calculateMarinaEvents
+        hourlyData: allTideData
       };
       
     } catch (error) {
@@ -438,7 +247,6 @@ const GuernseyRibApp = () => {
       const description = currentItem.querySelector('description').textContent;
       const title = currentItem.querySelector('title').textContent;
       
-      // Parse from title: "Wednesday - 15:00 BST: Drizzle, 18°C (65°F)"
       const summaryMatch = title.match(/: ([^,]+),/);
       const summary = summaryMatch ? summaryMatch[1] : '--';
       
@@ -448,7 +256,6 @@ const GuernseyRibApp = () => {
       const timeMatch = title.match(/(\d{2}:\d{2})/);
       const time = timeMatch ? timeMatch[1] : '--';
       
-      // Parse visibility from description
       const visibilityMatch = description.match(/Visibility:\s*([^,]+)/);
       const visibility = visibilityMatch ? visibilityMatch[1].trim() : '--';
       
@@ -472,13 +279,10 @@ const GuernseyRibApp = () => {
     const container = document.getElementById('windguru-widget-container');
     if (!container) return;
     
-    // Clear existing content
     container.innerHTML = '';
     
-    // Create unique widget ID
     const widgetId = 'wg_fwdg_35647_100_' + Date.now();
     
-    // Create script element with widget loader
     const script = document.createElement('script');
     script.id = widgetId;
     script.innerHTML = `
@@ -502,132 +306,51 @@ const GuernseyRibApp = () => {
     console.log('Windguru widget script loaded');
   };
 
-  // Calculate marina events - determine current state first
-  const calculateMarinaEvents = (marina, tomorrowTides, currentTimeMinutes) => {
-    if (!marina || !marina.open1) return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
-    
-    // Create all events for today
-    const events = [];
-    if (marina.open1 && marina.open1 !== '--') events.push({ type: 'Opened', time: marina.open1 });
-    if (marina.close1 && marina.close1 !== '--') events.push({ type: 'Closed', time: marina.close1 });
-    if (marina.open2 && marina.open2 !== '--') events.push({ type: 'Opened', time: marina.open2 });
-    if (marina.close2 && marina.close2 !== '--') events.push({ type: 'Closed', time: marina.close2 });
-    if (marina.open3 && marina.open3 !== '--') events.push({ type: 'Opened', time: marina.open3 }); // Added open3!
-    
-    // Sort events chronologically
-    events.sort((a, b) => {
-      const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
-      const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
-      return timeA - timeB;
+  // Check if we need yesterday's or tomorrow's data
+  const checkNeedsExtraData = (todayTides, currentTimeMinutes) => {
+    const pastTides = todayTides.allTides.filter(tide => {
+      const tideMinutes = parseInt(tide.time.split(':')[0]) * 60 + parseInt(tide.time.split(':')[1]);
+      return tideMinutes <= currentTimeMinutes;
     });
     
-    // Find most recent past event to determine current state
-    let currentState = 'unknown';
-    let lastEventData = null;
-    
-    for (let i = 0; i < events.length; i++) {
-      const event = events[i];
-      const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
-      
-      if (eventMinutes <= currentTimeMinutes) {
-        lastEventData = event;
-        currentState = event.type; // 'Opened' or 'Closed'
-      }
-    }
-    
-    let lastEvent = { time: '--', type: '--' };
-    let nextEvent = { time: '--', type: '--' };
-    
-    // If no events today, data problem - don't guess
-    if (!lastEventData) {
-      return { lastEvent, nextEvent };
-    }
-    
-    if (currentState === 'Opened') {
-      // Currently OPEN: Last=Opened, Next=Closes
-      lastEvent = lastEventData;
-      
-      // Find next closing - first try today
-      const nextClose = events.find(e => {
-        const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-        return e.type === 'Closed' && eventMinutes > currentTimeMinutes;
-      });
-      
-      if (nextClose) {
-        nextEvent = nextClose;
-      } else if (tomorrowTides && tomorrowTides.marinaTimes) {
-        // Use tomorrow's marina data
-        const tomorrowMarina = tomorrowTides.marinaTimes[settings.marina] || {};
-        const tomorrowEvents = [];
-        if (tomorrowMarina.open1 && tomorrowMarina.open1 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open1 });
-        if (tomorrowMarina.close1 && tomorrowMarina.close1 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close1 });
-        if (tomorrowMarina.open2 && tomorrowMarina.open2 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open2 });
-        if (tomorrowMarina.close2 && tomorrowMarina.close2 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close2 });
-        if (tomorrowMarina.open3 && tomorrowMarina.open3 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open3 }); // Added open3!
-        if (tomorrowMarina.open3 && tomorrowMarina.open3 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open3 }); // Added open3!
-        
-        const firstClose = tomorrowEvents.find(e => e.type === 'Closed');
-        nextEvent = firstClose || { time: '--', type: '--' };
-      } else {
-        nextEvent = { time: '--', type: '--' };
-      }
-      
-    } else if (currentState === 'Closed') {
-      // Currently CLOSED: Last=Closed, Next=Opens  
-      lastEvent = lastEventData;
-      
-      // Find next opening - first try today
-      const nextOpen = events.find(e => {
-        const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
-        return e.type === 'Opened' && eventMinutes > currentTimeMinutes;
-      });
-      
-      if (nextOpen) {
-        nextEvent = nextOpen;
-      } else if (tomorrowTides && tomorrowTides.marinaTimes) {
-        // Use tomorrow's marina data
-        const tomorrowMarina = tomorrowTides.marinaTimes[settings.marina] || {};
-        const tomorrowEvents = [];
-        if (tomorrowMarina.open1 && tomorrowMarina.open1 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open1 });
-        if (tomorrowMarina.close1 && tomorrowMarina.close1 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close1 });
-        if (tomorrowMarina.open2 && tomorrowMarina.open2 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open2 });
-        if (tomorrowMarina.close2 && tomorrowMarina.close2 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close2 });
-        
-        const firstOpen = tomorrowEvents.find(e => e.type === 'Opened');
-        nextEvent = firstOpen || { time: '--', type: '--' };
-      } else {
-        nextEvent = { time: '--', type: '--' };
-      }
-    } else {
-      // Unknown state - data problem
-      lastEvent = { time: '--', type: '--' };
-      nextEvent = { time: '--', type: '--' };
-    }
-    
-    return { lastEvent, nextEvent };
-  };
-  const checkNeedsTomorrowData = async (todayTides, currentTimeMinutes) => {
-    // Check if any future tide events exist today
     const futureTides = todayTides.allTides.filter(tide => {
       const tideMinutes = parseInt(tide.time.split(':')[0]) * 60 + parseInt(tide.time.split(':')[1]);
       return tideMinutes > currentTimeMinutes;
     });
     
-    // Check if any future marina events exist today
     const marina = todayTides.marinaTimes[settings.marina] || {};
-    const futureMarinas = [
+    console.log('Marina data for', settings.marina, ':', marina);
+    
+    const marinaEvents = [
       { type: 'Opened', time: marina.open1 },
       { type: 'Closed', time: marina.close1 },
       { type: 'Opened', time: marina.open2 },
       { type: 'Closed', time: marina.close2 },
-      { type: 'Opened', time: marina.open3 } // Added open3!
-    ].filter(e => {
-      if (!e.time || e.time === '--') return false;
+      { type: 'Opened', time: marina.open3 }
+    ].filter(e => e.time && e.time !== '--');
+    
+    const pastMarinas = marinaEvents.filter(e => {
+      const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
+      return eventMinutes <= currentTimeMinutes;
+    });
+    
+    const futureMarinas = marinaEvents.filter(e => {
       const eventMinutes = parseInt(e.time.split(':')[0]) * 60 + parseInt(e.time.split(':')[1]);
       return eventMinutes > currentTimeMinutes;
     });
     
-    return futureTides.length === 0 || futureMarinas.length === 0;
+    console.log('Data needs analysis:', {
+      pastTides: pastTides.length,
+      futureTides: futureTides.length,
+      pastMarinas: pastMarinas.length,
+      futureMarinas: futureMarinas.length,
+      currentTimeMinutes
+    });
+    
+    return {
+      needsYesterday: pastTides.length === 0 || pastMarinas.length === 0,
+      needsTomorrow: futureTides.length === 0 || futureMarinas.length === 0
+    };
   };
 
   // Calculate tide events using today + yesterday + tomorrow data
@@ -671,9 +394,96 @@ const GuernseyRibApp = () => {
     }
     
     console.log('Tide events final result:', { lastTide, nextTide });
-    
     return { lastTide, nextTide };
   };
+
+  // Calculate marina events using today + yesterday + tomorrow data
+  const calculateMarinaEvents = (marina, yesterdayTides, tomorrowTides, currentTimeMinutes) => {
+    console.log('calculateMarinaEvents called with:', { marina, currentTimeMinutes });
+    
+    if (!marina || (!marina.open1 && !marina.close1 && !marina.open2 && !marina.close2 && !marina.open3)) {
+      console.log('No marina data available');
+      return { lastEvent: { time: '--', type: '--' }, nextEvent: { time: '--', type: '--' } };
+    }
+    
+    // Create all events for today
+    const events = [];
+    if (marina.open1 && marina.open1 !== '--') events.push({ type: 'Opened', time: marina.open1 });
+    if (marina.close1 && marina.close1 !== '--') events.push({ type: 'Closed', time: marina.close1 });
+    if (marina.open2 && marina.open2 !== '--') events.push({ type: 'Opened', time: marina.open2 });
+    if (marina.close2 && marina.close2 !== '--') events.push({ type: 'Closed', time: marina.close2 });
+    if (marina.open3 && marina.open3 !== '--') events.push({ type: 'Opened', time: marina.open3 });
+    
+    console.log('Today marina events:', events);
+    
+    // Sort events chronologically
+    events.sort((a, b) => {
+      const timeA = parseInt(a.time.split(':')[0]) * 60 + parseInt(a.time.split(':')[1]);
+      const timeB = parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]);
+      return timeA - timeB;
+    });
+    
+    let lastEvent = { time: '--', type: '--' };
+    let nextEvent = { time: '--', type: '--' };
+    
+    // Find most recent past event - first try today
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+      
+      if (eventMinutes <= currentTimeMinutes) {
+        lastEvent = event;
+      }
+    }
+    
+    // If no past event today, use yesterday's last
+    if (lastEvent.time === '--' && yesterdayTides && yesterdayTides.marinaTimes) {
+      const yesterdayMarina = yesterdayTides.marinaTimes[settings.marina] || {};
+      const yesterdayEvents = [];
+      if (yesterdayMarina.open1 && yesterdayMarina.open1 !== '--') yesterdayEvents.push({ type: 'Opened', time: yesterdayMarina.open1 });
+      if (yesterdayMarina.close1 && yesterdayMarina.close1 !== '--') yesterdayEvents.push({ type: 'Closed', time: yesterdayMarina.close1 });
+      if (yesterdayMarina.open2 && yesterdayMarina.open2 !== '--') yesterdayEvents.push({ type: 'Opened', time: yesterdayMarina.open2 });
+      if (yesterdayMarina.close2 && yesterdayMarina.close2 !== '--') yesterdayEvents.push({ type: 'Closed', time: yesterdayMarina.close2 });
+      if (yesterdayMarina.open3 && yesterdayMarina.open3 !== '--') yesterdayEvents.push({ type: 'Opened', time: yesterdayMarina.open3 });
+      
+      if (yesterdayEvents.length > 0) {
+        lastEvent = yesterdayEvents[yesterdayEvents.length - 1];
+        console.log('Using yesterday last marina event:', lastEvent);
+      }
+    }
+    
+    // Find next future event - first try today
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      const eventMinutes = parseInt(event.time.split(':')[0]) * 60 + parseInt(event.time.split(':')[1]);
+      
+      if (eventMinutes > currentTimeMinutes) {
+        nextEvent = event;
+        break;
+      }
+    }
+    
+    // If no future event today, use tomorrow's first
+    if (nextEvent.time === '--' && tomorrowTides && tomorrowTides.marinaTimes) {
+      const tomorrowMarina = tomorrowTides.marinaTimes[settings.marina] || {};
+      const tomorrowEvents = [];
+      if (tomorrowMarina.open1 && tomorrowMarina.open1 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open1 });
+      if (tomorrowMarina.close1 && tomorrowMarina.close1 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close1 });
+      if (tomorrowMarina.open2 && tomorrowMarina.open2 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open2 });
+      if (tomorrowMarina.close2 && tomorrowMarina.close2 !== '--') tomorrowEvents.push({ type: 'Closed', time: tomorrowMarina.close2 });
+      if (tomorrowMarina.open3 && tomorrowMarina.open3 !== '--') tomorrowEvents.push({ type: 'Opened', time: tomorrowMarina.open3 });
+      
+      if (tomorrowEvents.length > 0) {
+        nextEvent = tomorrowEvents[0];
+        console.log('Using tomorrow first marina event:', nextEvent);
+      }
+    }
+    
+    console.log('Marina events final result:', { lastEvent, nextEvent });
+    return { lastEvent, nextEvent };
+  };
+
+  // Calculate year day for tide URL
   const getYearDay = (date) => {
     const start = new Date(date.getFullYear(), 0, 0);
     const diff = date - start;
@@ -684,7 +494,6 @@ const GuernseyRibApp = () => {
   const updateLiveData = async () => {
     setIsUpdating(true);
     try {
-      // Try proxies in order
       const proxies = [
         'https://api.codetabs.com/v1/proxy?quest=',
         'https://corsproxy.io/?',
@@ -712,7 +521,7 @@ const GuernseyRibApp = () => {
         return;
       }
       
-      // Fetch tide data with dynamic URL
+      // Fetch tide data
       try {
         const now = new Date();
         const yearDay = getYearDay(now);
@@ -730,18 +539,16 @@ const GuernseyRibApp = () => {
         }
         
         console.log('Tide data received, length:', content?.length);
-        console.log('First 500 chars:', content?.substring(0, 500));
         
         if (content) {
-          const now = new Date();
           const guernseyTime = new Date(now.toLocaleString("en-US", {timeZone: "Europe/London"}));
           const currentTimeMinutes = guernseyTime.getHours() * 60 + guernseyTime.getMinutes();
           
           const parsedTides = parseTideData(content);
           console.log('Parsed tide result:', parsedTides);
+          
           if (parsedTides) {
-            // Check if we need yesterday's or tomorrow's data
-            const extraDataNeeds = await checkNeedsExtraData(parsedTides, currentTimeMinutes);
+            const extraDataNeeds = checkNeedsExtraData(parsedTides, currentTimeMinutes);
             
             let yesterdayTides = null;
             let tomorrowTides = null;
@@ -819,14 +626,14 @@ const GuernseyRibApp = () => {
         console.log('Tide fetch failed:', error.message);
       }
 
-      // Load Windguru widget instead of fetching
+      // Load Windguru widget
       try {
         loadWindguruWidget();
       } catch (error) {
         console.log('Windguru widget failed:', error.message);
       }
 
-      // Fetch weather data from BBC RSS (try different endpoint)
+      // Fetch weather data from BBC RSS
       try {
         const bbcRSSUrl = 'https://weather-broker-cdn.api.bbci.co.uk/en/observation/rss/6296594';
         const bbcResponse = await fetch(workingProxy + encodeURIComponent(bbcRSSUrl));
@@ -844,7 +651,7 @@ const GuernseyRibApp = () => {
           if (parsedWeather) {
             // Also fetch sunrise/sunset from BBC weather page
             try {
-              const bbcWeatherUrl = 'https://www.bbc.com/weather/3042287'; // Guernsey
+              const bbcWeatherUrl = 'https://www.bbc.com/weather/3042287';
               const bbcPageResponse = await fetch(workingProxy + encodeURIComponent(bbcWeatherUrl));
               
               let pageContent;
@@ -887,7 +694,6 @@ const GuernseyRibApp = () => {
 
   // Calculate conditions score
   const calculateConditions = () => {
-    // Check for night mode first
     if (isNightTime()) {
       return { 
         score: null, 
@@ -902,7 +708,6 @@ const GuernseyRibApp = () => {
     let score = 100;
     let factors = [];
     
-    // Convert string values to numbers for calculations
     const windSpeed = typeof currentConditions.wind.speed === 'number' ? currentConditions.wind.speed : parseFloat(currentConditions.wind.speed) || 0;
     const waveHeight = typeof currentConditions.waves.height === 'number' ? currentConditions.waves.height : parseFloat(currentConditions.waves.height) || 0;
     const tideHeight = typeof currentConditions.tides.currentHeight === 'number' ? currentConditions.tides.currentHeight : parseFloat(currentConditions.tides.currentHeight) || 0;
@@ -971,7 +776,6 @@ const GuernseyRibApp = () => {
       icon = '❌';
     }
 
-    // Check if marina is currently closed - simple logic
     const lastMarinaEvent = currentConditions.tides.lastMarinaEvent || { type: '--' };
     const isMarinaClosed = lastMarinaEvent.type === 'Closed';
 
@@ -981,13 +785,12 @@ const GuernseyRibApp = () => {
   const conditions = calculateConditions();
 
   const CurrentConditions = () => {
-    // Update current time every minute
     const [currentTime, setCurrentTime] = useState(new Date());
     
     useEffect(() => {
       const timer = setInterval(() => {
         setCurrentTime(new Date());
-      }, 60000); // Update every minute
+      }, 60000);
       
       return () => clearInterval(timer);
     }, []);
@@ -1015,159 +818,159 @@ const GuernseyRibApp = () => {
         )
       ),
 
-    // Three Main Factors
-    React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch" },
-      // 1. TIDES
-      React.createElement('div', { className: "bg-green-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
-        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-green-800" },
-          React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌊'),
-          'TIDES'
-        ),
-        React.createElement('div', { className: "space-y-3 flex-grow" },
-          // Row 1 - Marina Status
-          React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
-            // Last Marina Status
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
-              React.createElement('div', { className: "text-xs text-green-700" }, 
-                currentConditions.tides.lastMarinaEvent.type !== '--' ?
-                  `Marina ${currentConditions.tides.lastMarinaEvent.type}` :
-                  'Last Marina Status'
+      // Three Main Factors
+      React.createElement('div', { className: "grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch" },
+        // 1. TIDES
+        React.createElement('div', { className: "bg-green-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
+          React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-green-800" },
+            React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌊'),
+            'TIDES'
+          ),
+          React.createElement('div', { className: "space-y-3 flex-grow" },
+            // Row 1 - Marina Status
+            React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
+              // Last Marina Status
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+                React.createElement('div', { className: "text-xs text-green-700" }, 
+                  currentConditions.tides.lastMarinaEvent.type !== '--' ?
+                    `Marina ${currentConditions.tides.lastMarinaEvent.type}` :
+                    'Last Marina Status'
+                ),
+                React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
+                  currentConditions.tides.lastMarinaEvent.time
+                ),
+                React.createElement('div', { className: "text-xs text-green-800" }, 
+                  `${settings.boatDraft}m clearance`
+                )
               ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
-                currentConditions.tides.lastMarinaEvent.time
+              // Current Time
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+                React.createElement('div', { className: "text-xs text-green-700" }, 'Current Time'),
+                React.createElement('div', { className: "text-lg sm:text-xl font-bold text-green-900" }, 
+                  currentTime.toLocaleTimeString('en-GB', {timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit'})
+                )
               ),
-              React.createElement('div', { className: "text-xs text-green-800" }, 
-                `${settings.boatDraft}m clearance`
+              // Next Marina Status
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+                React.createElement('div', { className: "text-xs text-green-700" }, 
+                  currentConditions.tides.nextMarinaEvent.type !== '--' ?
+                    `Marina ${currentConditions.tides.nextMarinaEvent.type === 'Opened' ? 'Opens' : 'Closes'}` :
+                    'Next Marina Status'
+                ),
+                React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
+                  currentConditions.tides.nextMarinaEvent.time
+                ),
+                React.createElement('div', { className: "text-xs text-green-800" }, 
+                  `${settings.boatDraft}m clearance`
+                )
               )
             ),
-            // Current Time
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
-              React.createElement('div', { className: "text-xs text-green-700" }, 'Current Time'),
-              React.createElement('div', { className: "text-lg sm:text-xl font-bold text-green-900" }, 
-                currentTime.toLocaleTimeString('en-GB', {timeZone: 'Europe/London', hour: '2-digit', minute: '2-digit'})
-              )
-            ),
-            // Next Marina Status
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
-              React.createElement('div', { className: "text-xs text-green-700" }, 
-                currentConditions.tides.nextMarinaEvent.type !== '--' ?
-                  `Marina ${currentConditions.tides.nextMarinaEvent.type === 'Opened' ? 'Opens' : 'Closes'}` :
-                  'Next Marina Status'
+            
+            // Row 2 - Tide Status
+            React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
+              // Last Tide
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+                React.createElement('div', { className: "text-xs text-green-700" }, 
+                  currentConditions.tides.lastTide.type !== '--' ? 
+                    `Last ${currentConditions.tides.lastTide.type.charAt(0).toUpperCase() + currentConditions.tides.lastTide.type.slice(1)}` : 
+                    'Last Tide'
+                ),
+                React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
+                  currentConditions.tides.lastTide.time
+                ),
+                React.createElement('div', { className: "text-xs sm:text-sm text-green-800" }, 
+                  currentConditions.tides.lastTide.height
+                )
               ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
-                currentConditions.tides.nextMarinaEvent.time
+              // Current Height
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+                React.createElement('div', { className: "text-xs text-green-700" }, 'Current Height'),
+                React.createElement('div', { className: "text-lg sm:text-xl font-bold text-green-900" }, 
+                  typeof currentConditions.tides.currentHeight === 'number' ? 
+                    `${currentConditions.tides.currentHeight.toFixed(1)}m` : 
+                    currentConditions.tides.currentHeight
+                )
               ),
-              React.createElement('div', { className: "text-xs text-green-800" }, 
-                `${settings.boatDraft}m clearance`
+              // Next Tide
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
+                React.createElement('div', { className: "text-xs text-green-700" }, 
+                  currentConditions.tides.nextTide.type !== '--' ? 
+                    `Next ${currentConditions.tides.nextTide.type.charAt(0).toUpperCase() + currentConditions.tides.nextTide.type.slice(1)}` : 
+                    'Next Tide'
+                ),
+                React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
+                  currentConditions.tides.nextTide.time
+                ),
+                React.createElement('div', { className: "text-xs sm:text-sm text-green-800" }, 
+                  currentConditions.tides.nextTide.height
+                )
               )
             )
           ),
-          
-          // Row 2 - Tide Status
-          React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3" },
-            // Last Tide
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
-              React.createElement('div', { className: "text-xs text-green-700" }, 
-                currentConditions.tides.lastTide.type !== '--' ? 
-                  `Last ${currentConditions.tides.lastTide.type.charAt(0).toUpperCase() + currentConditions.tides.lastTide.type.slice(1)}` : 
-                  'Last Tide'
+          React.createElement('div', { className: "text-xs text-green-600 italic text-left border-t border-green-200 pt-2 mt-3" },
+            React.createElement('a', { 
+              href: `https://tides.digimap.gg/?year=${new Date().getFullYear()}&yearDay=${getYearDay(new Date())}&reqDepth=${Math.round(settings.boatDraft * 100)}`,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              className: 'hover:underline'
+            }, 'Tide data: © Digimap Tides. Times adjusted for BST when applicable.')
+          )
+        ),
+
+        // 2. WIND & WAVES - Direct Widget
+        React.createElement('div', { className: "bg-gray-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
+          React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-gray-800" },
+            React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '💨'),
+            'WIND & WAVES'
+          ),
+          React.createElement('div', { className: "bg-gray-50 p-3 sm:p-4 rounded-lg min-h-[150px] sm:min-h-[200px] border border-gray-200 overflow-x-auto flex-grow" },
+            React.createElement('div', { id: "windguru-widget-container" },
+              React.createElement('div', { className: "text-center text-gray-600 py-6 sm:py-8 text-xs sm:text-base" }, 'Loading Windguru widget...')
+            )
+          ),
+          React.createElement('div', { className: "text-xs text-gray-600 italic mt-3 pt-2 border-t border-gray-200" },
+            React.createElement('a', { 
+              href: 'https://www.windguru.cz/35647',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              className: 'hover:underline'
+            }, 'Wind/Wave data: © Windguru.cz')
+          )
+        ),
+
+        // 3. WEATHER
+        React.createElement('div', { className: "bg-orange-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
+          React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-orange-800" },
+            React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌤️'),
+            'WEATHER'
+          ),
+          React.createElement('div', { className: "flex-grow" },
+            React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4" },
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
+                React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Summary'),
+                React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.summary)
               ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
-                currentConditions.tides.lastTide.time
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
+                React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Temperature'),
+                React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.temperature)
               ),
-              React.createElement('div', { className: "text-xs sm:text-sm text-green-800" }, 
-                currentConditions.tides.lastTide.height
-              )
-            ),
-            // Current Height
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
-              React.createElement('div', { className: "text-xs text-green-700" }, 'Current Height'),
-              React.createElement('div', { className: "text-lg sm:text-xl font-bold text-green-900" }, 
-                typeof currentConditions.tides.currentHeight === 'number' ? 
-                  `${currentConditions.tides.currentHeight.toFixed(1)}m` : 
-                  currentConditions.tides.currentHeight
-              )
-            ),
-            // Next Tide
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-green-200 rounded" },
-              React.createElement('div', { className: "text-xs text-green-700" }, 
-                currentConditions.tides.nextTide.type !== '--' ? 
-                  `Next ${currentConditions.tides.nextTide.type.charAt(0).toUpperCase() + currentConditions.tides.nextTide.type.slice(1)}` : 
-                  'Next Tide'
-              ),
-              React.createElement('div', { className: "font-semibold text-sm sm:text-base text-green-900" }, 
-                currentConditions.tides.nextTide.time
-              ),
-              React.createElement('div', { className: "text-xs sm:text-sm text-green-800" }, 
-                currentConditions.tides.nextTide.height
+              React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
+                React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Visibility'),
+                React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.visibility)
               )
             )
+          ),
+          React.createElement('div', { className: "text-xs text-orange-600 italic text-left border-t border-orange-200 pt-2" },
+            React.createElement('a', { 
+              href: 'https://www.bbc.com/weather/6296594',
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              className: 'hover:underline'
+            }, `Weather data: BBC Weather ${currentConditions.weather.time}`)
           )
-        ),
-        React.createElement('div', { className: "text-xs text-green-600 italic text-left border-t border-green-200 pt-2 mt-3" },
-          React.createElement('a', { 
-            href: `https://tides.digimap.gg/?year=${new Date().getFullYear()}&yearDay=${getYearDay(new Date())}&reqDepth=${Math.round(settings.boatDraft * 100)}`,
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            className: 'hover:underline'
-          }, 'Tide data: © Digimap Tides. Times adjusted for BST when applicable.')
-        )
-      ),
-
-      // 2. WIND & WAVES - Direct Widget
-      React.createElement('div', { className: "bg-gray-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
-        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-gray-800" },
-          React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '💨'),
-          'WIND & WAVES'
-        ),
-        React.createElement('div', { className: "bg-gray-50 p-3 sm:p-4 rounded-lg min-h-[150px] sm:min-h-[200px] border border-gray-200 overflow-x-auto flex-grow" },
-          React.createElement('div', { id: "windguru-widget-container" },
-            React.createElement('div', { className: "text-center text-gray-600 py-6 sm:py-8 text-xs sm:text-base" }, 'Loading Windguru widget...')
-          )
-        ),
-        React.createElement('div', { className: "text-xs text-gray-600 italic mt-3 pt-2 border-t border-gray-200" },
-          React.createElement('a', { 
-            href: 'https://www.windguru.cz/35647',
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            className: 'hover:underline'
-          }, 'Wind/Wave data: © Windguru.cz')
-        )
-      ),
-
-      // 3. WEATHER
-      React.createElement('div', { className: "bg-orange-100 rounded-lg shadow p-4 sm:p-6 flex flex-col h-full" },
-        React.createElement('h3', { className: "text-lg sm:text-xl font-bold flex items-center mb-3 sm:mb-4 text-orange-800" },
-          React.createElement('span', { className: "text-xl sm:text-2xl mr-2" }, '🌤️'),
-          'WEATHER'
-        ),
-        React.createElement('div', { className: "flex-grow" },
-          React.createElement('div', { className: "grid grid-cols-3 gap-2 sm:gap-3 mb-3 sm:mb-4" },
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
-              React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Summary'),
-              React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.summary)
-            ),
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
-              React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Temperature'),
-              React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.temperature)
-            ),
-            React.createElement('div', { className: "text-center p-2 sm:p-3 bg-orange-50 rounded border border-orange-200" },
-              React.createElement('div', { className: "text-xs text-orange-600 mb-1" }, 'Visibility'),
-              React.createElement('div', { className: "font-semibold text-xs sm:text-sm text-orange-800" }, currentConditions.weather.visibility)
-            )
-          )
-        ),
-        React.createElement('div', { className: "text-xs text-orange-600 italic text-left border-t border-orange-200 pt-2" },
-          React.createElement('a', { 
-            href: 'https://www.bbc.com/weather/6296594',
-            target: '_blank',
-            rel: 'noopener noreferrer',
-            className: 'hover:underline'
-          }, `Weather data: BBC Weather ${currentConditions.weather.time}`)
         )
       )
-    )
-   );
+    );
   };
 
   return React.createElement('div', { className: "min-h-screen bg-blue-50" },
@@ -1182,9 +985,16 @@ const GuernseyRibApp = () => {
           ),
           React.createElement('div', { className: "text-center sm:text-right" },
             React.createElement('button', {
+              onClick: () => setShowSettings(!showSettings),
+              className: "bg-blue-500 hover:bg-blue-400 px-3 py-2 rounded-lg inline-flex items-center text-xs sm:text-sm font-medium transition-colors mb-2"
+            },
+              React.createElement('span', { className: "mr-2" }, '⚙️'),
+              showSettings ? 'Hide Settings' : 'Settings'
+            ),
+            React.createElement('button', {
               onClick: updateLiveData,
               disabled: isUpdating,
-              className: "bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 px-3 py-2 sm:px-4 sm:py-2 rounded-lg inline-flex items-center text-xs sm:text-sm font-medium transition-colors mx-auto sm:mx-0 mb-1"
+              className: "bg-blue-600 hover:bg-blue-500 disabled:bg-blue-700 px-3 py-2 rounded-lg inline-flex items-center text-xs sm:text-sm font-medium transition-colors mb-1"
             },
               isUpdating ? 
                 React.createElement(React.Fragment, null,
